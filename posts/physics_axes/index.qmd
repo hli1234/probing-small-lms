@@ -3,7 +3,7 @@ title: "Does GPT-2 know how big a galaxy is?"
 subtitle: "Probing a small language model for physical-scale intuitions across length, time, and mass — and finding that one of these is encoded cleanly and the other two aren't."
 author:
   - name: "Huangxing Li"
-date: "2024-05-06"
+date: "2026-05-10"
 abstract: |
   A natural extension of the integer-magnitude axis I found in GPT-2's
   embedding: does the same model represent *physical* magnitude — sizes,

@@ -3,7 +3,7 @@ title: "Looking for the log-multiplication trick inside a small language model"
 subtitle: "Where does GPT-2 keep its slide rule? A tour through linear probes, activation patching, and one large surprise."
 author:
   - name: "Huangxing Li"
-date: "2023-10-15"
+date: "2026-05-17"
 abstract: |
   Before pocket calculators, scientists multiplied with slide rules: look up
   two logarithms, add them, look up an exponential. Does a language model

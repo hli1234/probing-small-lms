@@ -2,7 +2,7 @@
 title: "Transformers learn to anchor: a small experiment in positional periodicity"
 description: "A controlled experiment showing that periodic spikes in transformer attention can be positional anchors rather than evidence of content-driven learning."
 author: "Huangxing Li"
-date: "2026-05-17"
+date: "2023-10-15"
 categories: [interpretability, transformers, experiments]
 image: figures/fig1_baseline_attention.png
 format:
