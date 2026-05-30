@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Notes on what small language models know about the world – Probing small LMs</title>
+<title>Notes on what language models know about the world – Probing small LMs</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -182,7 +182,7 @@ window.Quarto = {
 </script>
 
 <link rel="stylesheet" href="styles.css">
-</head>
+<link rel="alternate" type="application/rss+xml" title="Probing small LMs" href="index.xml" data-external="1"></head>
 
 <body class="nav-fixed quarto-light">
 
@@ -227,7 +227,7 @@ window.Quarto = {
 <header id="title-block-header" class="quarto-title-block default page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-page-left">
-      <div class="quarto-title-block"><div><h1 class="title">Notes on what small language models know about the world</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+      <div class="quarto-title-block"><div><h1 class="title">Notes on what language models know about the world</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
             <p class="subtitle lead">Probes, patches, and pictures from the residual stream</p>
                       </div>
   </div>
@@ -254,10 +254,7 @@ window.Quarto = {
 
 
 
-<p>Each post here uses a small, runnable experiment — linear probes, activation patching, simple closed-form models — to ask one question about how a language model represents some piece of the world. The emphasis is on <em>cheap and direct</em>: every figure here reproduces on a laptop CPU in under an hour.</p>
-<p>The two themes so far:</p>
-<p><strong>Numerical magnitude.</strong> Small language models build a roughly logarithmic axis for integer magnitude in their token embeddings. That axis has direction-specific causal effect on multiplication predictions, and the answer’s log is linearly decodable from the residual stream right before the LM head — but probing-vs-patching shows the probe direction is correlational, not causal. Across three small models the behavioural pull of the log axis on actual output is invariant at $$22% of “perfect” log readout.</p>
-<p><strong>Physical scale.</strong> GPT-2’s bare-token embedding cleanly orders temporal words (<code>nanosecond → millennium</code>) on a log axis but not length or mass words — because length and mass tokens are semantically heterogeneous (“electron” is a particle first, a mass second). Contextualised probing rescues both: with a <code>"the mass of a typical X is"</code> prompt, mass R² jumps from 0.45 to 0.84. The model has the information; the bare token doesn’t store it on a probe-friendly direction.</p>
+<p>Each post here uses a small, runnable experiment — linear probes, activation patching, simple closed-form models — to ask one question about how a language model represents some piece of the world. The emphasis is on <em>cheap and direct</em>: every figure here reproduces on a laptop pc in under an hour.</p>
 <p>The posts:</p>
 
 
@@ -507,7 +504,7 @@ Huangxing Li
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/hli1234\.github\.io\/probing-small-lms\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -835,7 +832,7 @@ Huangxing Li
   });
   </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Notes on what small language models know about the world"</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Notes on what language models know about the world"</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="an">subtitle:</span><span class="co"> "Probes, patches, and pictures from the residual stream"</span></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="an">listing:</span></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">  contents: posts</span></span>
@@ -853,28 +850,10 @@ Huangxing Li
 <span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>activation patching, simple closed-form models — to ask one question</span>
 <span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>about how a language model represents some piece of the world. The</span>
 <span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>emphasis is on *cheap and direct*: every figure here reproduces on a</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>laptop CPU in under an hour.</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>laptop pc in under an hour.</span>
 <span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>The two themes so far:</span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>**Numerical magnitude.** Small language models build a roughly</span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>logarithmic axis for integer magnitude in their token embeddings. That</span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>axis has direction-specific causal effect on multiplication predictions,</span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>and the answer's log is linearly decodable from the residual stream right</span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>before the LM head — but probing-vs-patching shows the probe direction</span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>is correlational, not causal. Across three small models the behavioural</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>pull of the log axis on actual output is invariant at $\sim$22% of</span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>"perfect" log readout.</span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>**Physical scale.** GPT-2's bare-token embedding cleanly orders temporal</span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>words (<span class="in">`nanosecond → millennium`</span>) on a log axis but not length or mass</span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>words — because length and mass tokens are semantically heterogeneous</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>("electron" is a particle first, a mass second). Contextualised probing</span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>rescues both: with a <span class="in">`"the mass of a typical X is"`</span> prompt, mass R² jumps</span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>from 0.45 to 0.84. The model has the information; the bare token doesn't</span>
-<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>store it on a probe-friendly direction.</span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>The posts:</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>The posts:</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
 
