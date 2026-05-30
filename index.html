@@ -264,44 +264,7 @@ window.Quarto = {
 
 <div class="quarto-listing quarto-listing-container-default" id="listing-listing">
 <div class="list quarto-listing-default">
-<div class="quarto-post image-right" data-index="0" data-categories="aW50ZXJwcmV0YWJpbGl0eSUyQ3RyYW5zZm9ybWVycyUyQ2V4cGVyaW1lbnRz" data-listing-date-sort="1779001200000" data-listing-file-modified-sort="1780120129412" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="9" data-listing-word-count-sort="1655">
-<div class="thumbnail"><a href="./posts/anchoring-blog/index.html" class="no-external">
-
-<img loading="lazy" src="./posts/anchoring-blog/figures/fig1_baseline_attention.png" class="thumbnail-image">
-
-</a></div>
-<div class="body">
-<h3 class="no-anchor listing-title">
-<a href="./posts/anchoring-blog/index.html" class="no-external">Transformers learn to anchor: a small experiment in positional periodicity</a>
-</h3>
-<div class="listing-subtitle">
-<a href="./posts/anchoring-blog/index.html" class="no-external"></a>
-</div>
-<div class="listing-categories">
-
-<div class="listing-category" onclick="window.quartoListingCategory('aW50ZXJwcmV0YWJpbGl0eQ=='); return false;">interpretability</div>
-
-<div class="listing-category" onclick="window.quartoListingCategory('dHJhbnNmb3JtZXJz'); return false;">transformers</div>
-
-<div class="listing-category" onclick="window.quartoListingCategory('ZXhwZXJpbWVudHM='); return false;">experiments</div>
-
-</div>
-<div class="delink listing-description"><a href="./posts/anchoring-blog/index.html" class="no-external">
-<p>A controlled experiment showing that periodic spikes in transformer attention can be positional anchors rather than evidence of content-driven learning.</p>
-</a></div>
-</div>
-<div class="metadata">
-<a href="./posts/anchoring-blog/index.html" class="no-external">
-<div class="listing-date">
-May 17, 2026
-</div>
-<div class="listing-author">
-Huangxing Li
-</div>
-</a>
-</div>
-</div>
-<div class="quarto-post image-right" data-index="1" data-categories="aW50ZXJwcmV0YWJpbGl0eSUyQ3BoeXNpY3MlMkNsYW5ndWFnZSUyMG1vZGVscw==" data-listing-date-sort="1714978800000" data-listing-file-modified-sort="1780120129422" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="9" data-listing-word-count-sort="1719">
+<div class="quarto-post image-right" data-index="0" data-categories="aW50ZXJwcmV0YWJpbGl0eSUyQ3BoeXNpY3MlMkNsYW5ndWFnZSUyMG1vZGVscw==" data-listing-date-sort="1778396400000" data-listing-file-modified-sort="1780175585609" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="10" data-listing-word-count-sort="1914">
 <div class="thumbnail"><a href="./posts/physics_axes/index.html" class="no-external">
 
 <p class="card-img-top"><img loading='lazy' src="posts/physics_axes/probe_gpt2_physics.png"  class="thumbnail-image card-img"/></p>
@@ -330,7 +293,7 @@ Huangxing Li
 <div class="metadata">
 <a href="./posts/physics_axes/index.html" class="no-external">
 <div class="listing-date">
-May 6, 2024
+May 10, 2026
 </div>
 <div class="listing-author">
 Huangxing Li
@@ -338,7 +301,7 @@ Huangxing Li
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="2" data-categories="aW50ZXJwcmV0YWJpbGl0eSUyQ21lY2gtaW50ZXJwJTJDbGFuZ3VhZ2UlMjBtb2RlbHMlMkNhcml0aG1ldGlj" data-listing-date-sort="1697353200000" data-listing-file-modified-sort="1780120129413" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="19" data-listing-word-count-sort="3726">
+<div class="quarto-post image-right" data-index="1" data-categories="aW50ZXJwcmV0YWJpbGl0eSUyQ21lY2gtaW50ZXJwJTJDbGFuZ3VhZ2UlMjBtb2RlbHMlMkNhcml0aG1ldGlj" data-listing-date-sort="1775199600000" data-listing-file-modified-sort="1780175583920" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="18" data-listing-word-count-sort="3436">
 <div class="thumbnail"><a href="./posts/log_shortcut_findings/index.html" class="no-external">
 
 <p class="card-img-top"><img loading='lazy' src="posts/log_shortcut_findings/summary_figure.png"  class="thumbnail-image card-img"/></p>
@@ -363,13 +326,50 @@ Huangxing Li
 
 </div>
 <div class="delink listing-description"><a href="./posts/log_shortcut_findings/index.html" class="no-external">
-<p>Before pocket calculators, scientists multiplied with slide rules: look up two logarithms, add them, look up an exponential. Does a language model ever do the same? Using linear probes and activation patching on three small language models (GPT-2 small, Pythia-70M, Pythia-160M), I find that (1) the token embedding represents integer magnitude on a roughly logarithmic axis (<span class="math inline">R^2 = 0.89-0.95</span>); (2) perturbing this axis has direction-specific causal effect on multiplication predictions, rulingß out generic noise; (3) the answer’s log is linearly decodable from the residual stream at the equals-sign position with <span class="math inline">R^2 = 0.989</span> — but patching along that direction barely moves the LM head’s output (causal slope 0.07), so the probe finding is correlational, not the direction the model actually uses; and (4) across all three models, the behavioural pull of the log axis on actual output is invariant at <span class="math inline">\beta \approx 0.22</span> of perfect readout, dominated by an LM-head frequency prior. The slide-rule substrate exists; the head’s free-will is small.</p>
+<p>Before pocket calculators, scientists multiplied with slide rules: look up two logarithms, add them, look up an exponential. Does a language model ever do the same? Using linear probes and activation patching on three small language models (GPT-2 small, Pythia-70M, Pythia-160M), I find that (1) the token embedding represents integer magnitude on a roughly logarithmic axis (<span class="math inline">R^2 = 0.89-0.95</span>); (2) perturbing this axis has direction-specific causal effect on multiplication predictions, ruling out generic noise; (3) the answer’s log is linearly decodable from the residual stream at the equals-sign position with <span class="math inline">R^2 = 0.989</span> — but patching along that direction barely moves the LM head’s output (causal slope 0.07), so the probe finding is correlational, not the direction the model actually uses; and (4) across all three models, the behavioural pull of the log axis on actual output is invariant at <span class="math inline">\beta \approx 0.22</span> of perfect readout, dominated by an LM-head frequency prior. The slide-rule substrate exists; the head’s autonomy is small.</p>
 </a></div>
 </div>
 <div class="metadata">
 <a href="./posts/log_shortcut_findings/index.html" class="no-external">
 <div class="listing-date">
-Oct 15, 2023
+Apr 3, 2026
+</div>
+<div class="listing-author">
+Huangxing Li
+</div>
+</a>
+</div>
+</div>
+<div class="quarto-post image-right" data-index="2" data-categories="aW50ZXJwcmV0YWJpbGl0eSUyQ3RyYW5zZm9ybWVycyUyQ2V4cGVyaW1lbnRz" data-listing-date-sort="1765353600000" data-listing-file-modified-sort="1780175586959" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="9" data-listing-word-count-sort="1630">
+<div class="thumbnail"><a href="./posts/anchoring-blog/index.html" class="no-external">
+
+<img loading="lazy" src="./posts/anchoring-blog/figures/fig1_baseline_attention.png" class="thumbnail-image">
+
+</a></div>
+<div class="body">
+<h3 class="no-anchor listing-title">
+<a href="./posts/anchoring-blog/index.html" class="no-external">Transformers learn to anchor: a small experiment in positional periodicity</a>
+</h3>
+<div class="listing-subtitle">
+<a href="./posts/anchoring-blog/index.html" class="no-external"></a>
+</div>
+<div class="listing-categories">
+
+<div class="listing-category" onclick="window.quartoListingCategory('aW50ZXJwcmV0YWJpbGl0eQ=='); return false;">interpretability</div>
+
+<div class="listing-category" onclick="window.quartoListingCategory('dHJhbnNmb3JtZXJz'); return false;">transformers</div>
+
+<div class="listing-category" onclick="window.quartoListingCategory('ZXhwZXJpbWVudHM='); return false;">experiments</div>
+
+</div>
+<div class="delink listing-description"><a href="./posts/anchoring-blog/index.html" class="no-external">
+<p>A controlled experiment showing that periodic spikes in transformer attention can be positional anchors rather than evidence of content-driven learning.</p>
+</a></div>
+</div>
+<div class="metadata">
+<a href="./posts/anchoring-blog/index.html" class="no-external">
+<div class="listing-date">
+Dec 10, 2025
 </div>
 <div class="listing-author">
 Huangxing Li

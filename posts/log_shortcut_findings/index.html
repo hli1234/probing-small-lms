@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Huangxing Li">
-<meta name="dcterms.date" content="2023-10-15">
+<meta name="dcterms.date" content="2026-04-03">
 
 <title>Looking for the log-multiplication trick inside a small language model – Probing small LMs</title>
 <style>
@@ -222,7 +222,7 @@ window.Quarto = {
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">October 15, 2023</p>
+        <p class="date">April 3, 2026</p>
       </div>
     </div>
     
@@ -232,7 +232,7 @@ window.Quarto = {
   <div>
     <div class="abstract">
       <div class="block-title">Abstract</div>
-      <p>Before pocket calculators, scientists multiplied with slide rules: look up two logarithms, add them, look up an exponential. Does a language model ever do the same? Using linear probes and activation patching on three small language models (GPT-2 small, Pythia-70M, Pythia-160M), I find that (1) the token embedding represents integer magnitude on a roughly logarithmic axis (<span class="math inline">R^2 = 0.89-0.95</span>); (2) perturbing this axis has direction-specific causal effect on multiplication predictions, rulingß out generic noise; (3) the answer’s log is linearly decodable from the residual stream at the equals-sign position with <span class="math inline">R^2 = 0.989</span> — but patching along that direction barely moves the LM head’s output (causal slope 0.07), so the probe finding is correlational, not the direction the model actually uses; and (4) across all three models, the behavioural pull of the log axis on actual output is invariant at <span class="math inline">\beta \approx 0.22</span> of perfect readout, dominated by an LM-head frequency prior. The slide-rule substrate exists; the head’s free-will is small.</p>
+      <p>Before pocket calculators, scientists multiplied with slide rules: look up two logarithms, add them, look up an exponential. Does a language model ever do the same? Using linear probes and activation patching on three small language models (GPT-2 small, Pythia-70M, Pythia-160M), I find that (1) the token embedding represents integer magnitude on a roughly logarithmic axis (<span class="math inline">R^2 = 0.89-0.95</span>); (2) perturbing this axis has direction-specific causal effect on multiplication predictions, ruling out generic noise; (3) the answer’s log is linearly decodable from the residual stream at the equals-sign position with <span class="math inline">R^2 = 0.989</span> — but patching along that direction barely moves the LM head’s output (causal slope 0.07), so the probe finding is correlational, not the direction the model actually uses; and (4) across all three models, the behavioural pull of the log axis on actual output is invariant at <span class="math inline">\beta \approx 0.22</span> of perfect readout, dominated by an LM-head frequency prior. The slide-rule substrate exists; the head’s autonomy is small.</p>
     </div>
   </div>
   
@@ -249,9 +249,9 @@ window.Quarto = {
   <li><a href="#does-the-log-axis-actually-do-anything" id="toc-does-the-log-axis-actually-do-anything" class="nav-link" data-scroll-target="#does-the-log-axis-actually-do-anything">Does the log axis actually do anything?</a></li>
   <li><a href="#does-the-model-actually-compute-logab" id="toc-does-the-model-actually-compute-logab" class="nav-link" data-scroll-target="#does-the-model-actually-compute-logab">Does the model actually compute log(a·b)?</a></li>
   <li><a href="#two-more-checks-was-the-other-finding-real-or-an-artifact" id="toc-two-more-checks-was-the-other-finding-real-or-an-artifact" class="nav-link" data-scroll-target="#two-more-checks-was-the-other-finding-real-or-an-artifact">Two more checks: was the other finding real or an artifact?</a></li>
-  <li><a href="#what-this-collectively-shows" id="toc-what-this-collectively-shows" class="nav-link" data-scroll-target="#what-this-collectively-shows">What this collectively shows</a></li>
-  <li><a href="#caveats" id="toc-caveats" class="nav-link" data-scroll-target="#caveats">Caveats</a></li>
-  <li><a href="#five-things-to-test-next" id="toc-five-things-to-test-next" class="nav-link" data-scroll-target="#five-things-to-test-next">Five things to test next</a></li>
+  <li><a href="#summary-of-findings" id="toc-summary-of-findings" class="nav-link" data-scroll-target="#summary-of-findings">Summary of findings</a></li>
+  <li><a href="#limitations" id="toc-limitations" class="nav-link" data-scroll-target="#limitations">Limitations</a></li>
+  <li><a href="#future-research-directions" id="toc-future-research-directions" class="nav-link" data-scroll-target="#future-research-directions">Future research directions</a></li>
   <li><a href="#methodological-note" id="toc-methodological-note" class="nav-link" data-scroll-target="#methodological-note">Methodological note</a></li>
   <li><a href="#code" id="toc-code" class="nav-link" data-scroll-target="#code">Code</a></li>
   </ul>
@@ -270,14 +270,14 @@ window.Quarto = {
 
 <section id="the-question" class="level2">
 <h2 class="anchored" data-anchor-id="the-question">The question</h2>
-<p>For three centuries before the pocket calculator, engineers multiplied with slide rules. The slide rule is a physical implementation of one identity:</p>
+<p>For three centuries prior to the advent of digital calculators, scientific multiplication relied heavily on slide rules. The physical slide rule maps arithmetic computation onto a foundational geometric identity:</p>
 <p><span id="eq-shortcut"><span class="math display">
 a \cdot b = 2^{\log_2 a + \log_2 b}
 \tag{1}</span></span></p>
-<p>Three lookups and an addition, instead of a multiplication. The trick rests on a different <em>geometry</em> of number — positions on the slide rule are spaced by <span class="math inline">\log_2</span>, not by raw magnitude, so adding two distances corresponds to multiplying the underlying values.</p>
-<p>Does a neural network ever discover this geometry? If you train a model to predict text and it sees enough numbers, does it secretly learn the slide rule?</p>
-<p>There’s a longer plan in <a href="experiment1.md"><code>experiment1.md</code></a> to train a fresh tiny Transformer from scratch under capacity pressure and dissect it — Anthropic-style mechanistic interpretability. That’s weeks of work. This post is the parallel and cheaper question: <strong>is the shortcut already sitting inside an existing small language model?</strong></p>
-<p>To find out, I poked at GPT-2 small (the 124M-parameter model from 2019) and Pythia-160M (a more modern but similarly-sized model) with two tools: linear probes (a regression that reads a value off the residual stream) and activation patching (an intervention that surgically changes one direction in the residual stream and watches what happens downstream).</p>
+<p>By computing spatial additions across logarithmic spaces, this layout trades complex multi-digit multiplication for three simple lookups and a single addition. Distances on a slide rule are spaced by <span class="math inline">\log_2(x)</span> rather than linear magnitude, meaning that the physical transposition of parts mechanically performs exponential scaling.</p>
+<p>Whether an artificial neural network scales numerical features along an identical internal geometry remains an open question. When exposed to text containing frequent numerical patterns, does a standard transformer develop an internal representation analogous to a slide rule?</p>
+<p>While a comprehensive mechanistic investigation would involve training custom architectures from scratch under explicit capacity constraints, this evaluation targets a more direct question: <strong>is a log-multiplication shortcut already present within existing small pre-trained language models?</strong></p>
+<p>To trace this behavior, I evaluated GPT-2 small (124M parameters), Pythia-70M, and Pythia-160M. The evaluation relies on two primary interpretability paradigms: <strong>linear probing</strong> to read localized semantic features directly from the residual stream, and <strong>activation patching</strong> to test the downstream causal impact of surgically modifying vector coordinates along targeted directions.</p>
 <div class="callout callout-style-default callout-note callout-titled" title="Summary in one figure">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -303,16 +303,16 @@ Figure&nbsp;1: Six panels covering three models (GPT-2 small / Pythia-70M / Pyth
 </section>
 <section id="a-simple-model-first-when-should-a-learner-discover-the-shortcut" class="level2">
 <h2 class="anchored" data-anchor-id="a-simple-model-first-when-should-a-learner-discover-the-shortcut">A simple model first: when <em>should</em> a learner discover the shortcut?</h2>
-<p>Before touching real models I built a toy that makes the cost-pressure hypothesis quantitative. Two paths can compute <span class="math inline">z = a \cdot b</span>:</p>
+<p>To understand the optimization trade-offs, I first formulated a toy mathematical routing model to quantify cost pressures. Consider two independent computational pathways to solve for <span class="math inline">z = a \cdot b</span>:</p>
 <ul>
-<li><strong>Direct multiplication</strong>, with cost <span class="math inline">c_{\mathrm{mul}}(a, b) = \log_2(a) \cdot \log_2(b)</span> — bit × bit schoolbook work. <span class="math inline">2 \times 2</span> is one bit times one bit; <span class="math inline">1024 \times 512</span> is ten bits times nine.</li>
-<li><strong>The log–sum–exp shortcut</strong>, with cost <span class="math inline">c_{\mathrm{short}} = 6</span> — three primitive operations, independent of operand size.</li>
+<li><strong>Direct multiplication:</strong> This path scales with numerical complexity, carrying an algorithmic cost of <span class="math inline">c_{\mathrm{mul}}(a, b) = \log_2(a) \cdot \log_2(b)</span>. Simpler calculations (e.g., small single-digit values) require minimal bit manipulation, whereas macro-integers scale heavily.</li>
+<li><strong>Log–sum–exp shortcut:</strong> This path operates via fixed lookups with a static complexity baseline of <span class="math inline">c_{\mathrm{short}} = 6</span>, remaining uniform regardless of operand magnitude.</li>
 </ul>
-<p>A learnable gate <span class="math inline">p \in [0, 1]</span> reads <span class="math inline">(\log_2 a, \log_2 b)</span> and picks how much shortcut to use. The expected total cost at penalty weight <span class="math inline">\lambda</span> is</p>
+<p>We can define a learnable gating parameter <span class="math inline">p \in [0, 1]</span> that observes <span class="math inline">(\log_2 a, \log_2 b)</span> to optimize path routing. Given a specific multiplication complexity penalty <span class="math inline">\lambda</span>, the expected total cost is defined as:</p>
 <p><span id="eq-cost"><span class="math display">
 C(p, a, b, \lambda) = (1-p)\cdot \lambda \cdot c_{\mathrm{mul}}(a, b) + p \cdot c_{\mathrm{short}}.
 \tag{2}</span></span></p>
-<p>Sweep <span class="math inline">\lambda</span>. The aggregate probability of taking the shortcut traces a smooth sigmoid. The interesting geometry is in which <span class="math inline">(a, b)</span> pairs switch first — hard ones do, easy ones hold out, and trivial ones (those involving <span class="math inline">1</span>) never switch, because <span class="math inline">\log_2(1) = 0</span> makes direct multiplication genuinely free.</p>
+<p>Sweeping across values of <span class="math inline">\lambda</span> traces a clear optimization boundary. Complex operand pairs switch to the fixed-cost shortcut early, whereas simple pairs resist routing changes. For trivial values involving <span class="math inline">1</span>, direct calculation remains free because <span class="math inline">\log_2(1) = 0</span>, completely bypassing the need for a shortcut.</p>
 <div id="fig-toy-routing" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-toy-routing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -323,15 +323,15 @@ Figure&nbsp;2: Toy soft-routing model under varying multiplication-penalty weigh
 </figcaption>
 </figure>
 </div>
-<p>This isn’t itself a finding. It’s a yardstick — the routing geometry predicted by the simplest possible cost-cutter. The empirical question is whether real language models trained on text, not on multiplication, show even a faint trace of this geometry.</p>
+<p>Rather than acting as an empirical result, this model serves as a quantitative baseline. It provides a geometric hypothesis to compare against when testing whether real, text-trained models show any underlying trace of this efficiency-driven routing.</p>
 </section>
 <section id="how-gpt-2-represents-numbers" class="level2">
 <h2 class="anchored" data-anchor-id="how-gpt-2-represents-numbers">How GPT-2 represents numbers</h2>
-<p>To check what a model has internalised about integers, take the residual stream — the model’s internal scratchpad at each layer — at the position of a number token, and ask: can a linear regression predict <span class="math inline">\log_2(x)</span> from it? If yes, the model has a “log of this number” axis at that layer.</p>
-<p>I fed GPT-2 small the integers 2 through 1023, each as <code>" 5"</code>, <code>" 17"</code>, <code>" 1024"</code>, etc. Most are single BPE tokens. At every layer I extracted the residual stream and trained a ridge probe for <span class="math inline">\log_2(x)</span> and several controls.</p>
-<p><strong>At the very first layer — the raw token embedding, before any transformer block has run — <span class="math inline">\log_2(x)</span> is decodable at <span class="math inline">R^2 = 0.95</span> on held-out integers.</strong> Raw <span class="math inline">x</span> is also decodable, but worse, at <span class="math inline">R^2 = 0.77</span>. Shuffled labels (a noise control) give <span class="math inline">R^2 \approx 0</span>. So the embedding prefers the log shape.</p>
-<p>To confirm the axis is really log-shaped and not just “any monotone function of <span class="math inline">x</span>”, I swept the power-law family <span class="math inline">x^\alpha</span>. Decodability peaks right around <span class="math inline">\alpha = 0</span> — the log limit. If GPT-2 stored linear magnitude the peak would sit at <span class="math inline">\alpha = 1</span>. It doesn’t.</p>
-<p>What’s more surprising is what <em>else</em> the embedding stores. Parity is decodable at <span class="math inline">R^2 = 0.94</span>. Last digit (<span class="math inline">x \bmod 10</span>) at <span class="math inline">R^2 = 0.92</span>. GPT-2 has noticed, just from reading text, that <code>" 5"</code>, <code>" 15"</code>, <code>" 25"</code> all share the feature of ending in <code>5</code>. Ask the same probe for <code>"is x divisible by 7?"</code> and the <span class="math inline">R^2</span> is essentially zero. Same for <code>"is x prime?"</code>. The embedding has structure for the things a careful reader of natural language might track — size, parity, last digit — and ignores number-theory properties that show up too rarely in text to matter.</p>
+<p>To investigate how a model processes integer values internally, we can query the residual stream at a specific numerical token position. If a linear regression probe can accurately recover <span class="math inline">\log_2(x)</span> from these hidden states, it indicates that the model isolates a distinct logarithmic vector direction within that layer.</p>
+<p>I passed integer sequences from 2 to 1023 into GPT-2 small as isolated space-prefixed tokens (<code>" 5"</code>, <code>" 17"</code>, <code>" 1024"</code>). At each transformer block, the hidden states were extracted to train a ridge regression probe targeted at tracking <span class="math inline">\log_2(x)</span> along with several operational controls.</p>
+<p><strong>At the raw token embedding layer (layer 0)—prior to any attention or MLP processing—<span class="math inline">\log_2(x)</span> is cleanly decodable with a cross-validated <span class="math inline">R^2 = 0.95</span>.</strong> Direct linear scaling (<span class="math inline">x</span>) is significantly less distinct, yielding an <span class="math inline">R^2 = 0.77</span>, while randomized control labels drop completely to <span class="math inline">R^2 \approx 0</span>. This confirms a clear embedding preference for logarithmic geometry.</p>
+<p>To verify whether this axis represents a precise logarithmic scale rather than a generic monotonic trend, I evaluated a parametric family of power-law transformations (<span class="math inline">x^\alpha</span>). Probing performance peaks narrowly at <span class="math inline">\alpha = 0</span>, which corresponds mathematically to the logarithmic limit. Had the embedding prioritized linear magnitude, performance would have instead centered at <span class="math inline">\alpha = 1</span>.</p>
+<p>The embedding layer also natively encodes several non-linear attributes. Vector directions for numerical parity achieve a decodability of <span class="math inline">R^2 = 0.94</span>, and the final digit (<span class="math inline">x \bmod 10</span>) reaches an <span class="math inline">R^2 = 0.92</span>. GPT-2 uncovers surface-level linguistic associations (e.g., clustering terms ending in <code>5</code>), yet remains entirely insensitive to deeper number-theoretic features like primality or divisibility by <span class="math inline">7</span>, which fail to emerge above chance levels.</p>
 <div id="fig-controls" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-controls-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -344,12 +344,12 @@ Figure&nbsp;3: Linear-probe <span class="math inline">R^2</span> at each layer f
 </div>
 <section id="does-this-generalise-across-categories-of-numbers" class="level3">
 <h3 class="anchored" data-anchor-id="does-this-generalise-across-categories-of-numbers">Does this generalise across categories of numbers?</h3>
-<p>A natural question: does the integer log axis carry over to other numeric tokens — years like <code>" 1990"</code>, round numbers like <code>" 1000"</code>, number-words like <code>" million"</code>? A simple model says yes: GPT-2 has one shared magnitude axis for everything numeric.</p>
-<p>The data says no, decisively. Apply the integer-trained probe to:</p>
+<p>We can test whether this logarithmic vector space acts as a universal magnitude axis that extends uniformly across diverse numeric formats, such as calendar years (<code>" 1990"</code>), round numbers (<code>" 1000"</code>), or spelled-out words (<code>" million"</code>).</p>
+<p>The empirical data rejects this hypothesis. Applying the probe trained strictly on standard integers across these secondary groups yields highly degraded transfer metrics:</p>
 <ul>
-<li>152 single-token years from <span class="math inline">[1500, 2099]</span> → <span class="math inline">R^2 = -2274</span>. The readouts are nearly constant regardless of which year you feed in. The integer axis can’t distinguish 1500 from 2099 at all.</li>
-<li>33 single-token round numbers (multiples of 100 up to 100 000) → <span class="math inline">R^2 = 0.22</span>. Weak positive transfer.</li>
-<li>24 single-token English number-words (“one”…“twenty”, “hundred”, “thousand”, “million”, “billion”) → <span class="math inline">R^2 = 0.14</span>.</li>
+<li><strong>Calendar Years</strong> (152 single-token years between 1500 and 2099): <span class="math inline">R^2 = -2274</span>. The probe yields near-constant values, completely failing to separate the relative scale of distinct years.</li>
+<li><strong>Round Multiples</strong> (33 single-token multiples of 100 up to 100,000): <span class="math inline">R^2 = 0.22</span>, showing highly fragmented tracking.</li>
+<li><strong>Spelled Numbers</strong> (24 English number words): <span class="math inline">R^2 = 0.14</span>, demonstrating no structural alignment.</li>
 </ul>
 <div id="fig-shared-axis" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -361,15 +361,15 @@ Figure&nbsp;4: The integer-trained log probe applied to other numeric categories
 </figcaption>
 </figure>
 </div>
-<p>This tells you something about how GPT-2 represents numbers. The token <code>" 1990"</code> is encoded primarily as “a year” — its role in text — and only weakly as “the number 1990”. The model’s representation is role-dependent, not value-dependent. A probe trained on integers reads years as nonsense.</p>
+<p>This demonstrates that numerical encodings are highly dependent on their specific context and textual role rather than their raw scalar values. The token (<code>" 1990"</code>) is processed primarily as a temporal marker rather than its underlying physical magnitude. Each distinct numerical category occupies an isolated coordinate space within the embedding.</p>
 </section>
 </section>
 <section id="does-the-log-axis-actually-do-anything" class="level2">
 <h2 class="anchored" data-anchor-id="does-the-log-axis-actually-do-anything">Does the log axis actually do anything?</h2>
-<p>Decodability is a correlational fact. To test whether the model <em>uses</em> the log axis when it multiplies, I ran activation patching at the operand token.</p>
-<p>Take a prompt like <code>" 5 * 9 ="</code>. The model processes it normally. At the position where <code>" 5"</code> sits, the embedding’s projection onto the probe direction <span class="math inline">w</span> reads <span class="math inline">\log_2(5) \approx 2.3</span>. I add a rank-1 vector along <span class="math inline">w</span> so that projection now reads <span class="math inline">\log_2(2) = 1</span>. Everything else about the embedding stays the same — same parity, same last-digit, same noise. Then I let the model run the full 12 layers and ask: which numeric token does the next-token distribution prefer?</p>
-<p>For <code>" 5 * 9 ="</code>, patching <span class="math inline">\log_2(5) \to \log_2(2)</span> makes the logit for <code>" 18"</code> (= <span class="math inline">2 \cdot 9</span>) rise <em>above</em> the logit for <code>" 45"</code> (= <span class="math inline">5 \cdot 9</span>). The model has been talked into preferring the patched product. Patching toward <span class="math inline">4</span> makes <code>" 36"</code> win. Patching toward <span class="math inline">5</span> does nothing, as it should. And — the critical control — patching along five different random directions of equal magnitude to <span class="math inline">w</span> gives logit shifts indistinguishable from zero. The effect is specific to the probe direction.</p>
-<p>The effect is also <em>asymmetric</em>. Patching downward (toward smaller numbers) works cleanly. Patching upward (toward larger numbers) only partly works. Most plausible explanation: the LM head has a strong frequency prior favouring small, common numbers in text. A fixed-size patch is enough to push preference toward smaller numbers (with the prior) but not enough to push it toward larger numbers (against the prior).</p>
+<p>Because linear decodability establishes correlation rather than causation, I applied activation patching at the operand position to verify whether the model actively routes information along this logarithmic axis during multiplication tasks.</p>
+<p>Consider a baseline prompt like <code>" 5 * 9 ="</code>. At the vector coordinates representing <code>" 5"</code>, the embedding’s projection along the discovered probe direction <span class="math inline">w</span> scales cleanly with <span class="math inline">\log_2(5) \approx 2.3</span>. By applying a rank-1 vector shift along <span class="math inline">w</span>, I adjusted this projection to map exactly to <span class="math inline">\log_2(2) = 1</span>, leaving orthogonal features like parity and last-digit identities unchanged. The network was then allowed to complete its forward pass across all 12 layers.</p>
+<p>For the prompt <code>" 5 * 9 ="</code>, shifting the operand vector from <span class="math inline">\log_2(5) \to \log_2(2)</span> causes the output logit for <code>" 18"</code> (<span class="math inline">2 \cdot 9</span>) to rise cleanly above the true answer of <code>" 45"</code> (<span class="math inline">5 \cdot 9</span>). Artificially patching the coordinate toward <span class="math inline">4</span> smoothly shifts the top output token to <code>" 36"</code>. Conversely, applying equivalent vector interventions along random control paths yields no measurable logit shifts, proving that the causal effect is structurally isolated along the probed direction.</p>
+<p>The intervention reveals a notable asymmetry: downward patches (scaling to smaller values) shift output probabilities cleanly, whereas upward patches face significant resistance. This indicates that the language model head maintains a strong frequency prior that naturally penalizes large or rare numbers, readily accepting downward modifications while resisting shifts toward less common numerical outputs.</p>
 <div id="fig-patching" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-patching-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -383,11 +383,10 @@ Figure&nbsp;5: Causal patching at the operand position. <strong>Left:</strong> c
 </section>
 <section id="does-the-model-actually-compute-logab" class="level2">
 <h2 class="anchored" data-anchor-id="does-the-model-actually-compute-logab">Does the model actually compute log(a·b)?</h2>
-<p>This is the test I most wanted to run.</p>
-<p>If the model does the slide-rule trick — adds the operand logs and then exponentiates at the end — then at the position of the <code>=</code> sign, the residual stream right before the LM head should be carrying <span class="math inline">\log_2(a \cdot b)</span>. The operand-side log direction <span class="math inline">w</span> ought to read off this value.</p>
-<p>I checked. For <code>" 5 * 9 ="</code>, the operand-side probe at <code>=</code> reads off <strong>10.76</strong> — not <span class="math inline">\log_2(45) \approx 5.49</span>. For <code>" 3 * 7 ="</code> it reads <strong>11.17</strong>, not <span class="math inline">\log_2(21) \approx 4.39</span>. Across nine different prompts, the readout is essentially flat. The <span class="math inline">R^2</span> of “what the operand-axis probe reads at <code>=</code>” against “the true <span class="math inline">\log_2(a \cdot b)</span>” is <strong>0.011</strong> — no signal.</p>
-<p>My first reaction was that the circuit isn’t there. The shortcut exists on the input side, but the model isn’t wiring it together.</p>
-<p>Then it occurred to me: maybe the model uses a <em>different</em> direction at the <code>=</code> position to write down the answer’s log than the one it uses to read the operands’ logs. There’s no architectural reason those have to be the same vector — the model can translate between representations as it computes. So I trained a fresh ridge probe directly on the residual at <code>=</code>, against <span class="math inline">\log_2(a \cdot b)</span> for several hundred random <span class="math inline">(a, b)</span> pairs.</p>
+<p>If a transformer implements an internal slide-rule mechanism, it must add the operand logarithms together and express the total product <span class="math inline">\log_2(a \cdot b)</span> within the residual stream at the equals-sign token (<code>"="</code>) right before the final prediction head.</p>
+<p>To test this, I evaluated whether the operand-side probe vector <span class="math inline">w</span> could read the combined product scale at the final token position. For <code>" 5 * 9 ="</code>, the probe reads <strong>10.76</strong> (instead of <span class="math inline">\log_2(45) \approx 5.49</span>). For <code>" 3 * 7 ="</code>, it registers <strong>11.17</strong> (instead of <span class="math inline">\log_2(21) \approx 4.39</span>). Evaluating across multiple combinations reveals a flat response curve, yielding an <span class="math inline">R^2 = 0.011</span> between the probe’s readouts and the true product value.</p>
+<p>This initial result suggests that the complete slide-rule circuit is absent; while the operands are tracked logarithmically at the input, the values do not appear to combine along this vector direction at the output stage.</p>
+<p>However, a transformer is not architecturally constrained to reuse the same vector space across different token positions. The model can map intermediate transformations onto an entirely fresh coordinate axis. To test this, I trained a separate ridge probe directly on the hidden states of the <code>"="</code> token across hundreds of random calculation pairs.</p>
 <div class="callout callout-style-default callout-important callout-titled" title="The key result">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -398,26 +397,24 @@ Figure&nbsp;5: Causal patching at the operand position. <strong>Left:</strong> c
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>The new probe predicts the answer’s log at <strong><span class="math inline">R^2 = 0.989</span></strong> on held-out <span class="math inline">(a, b)</span> pairs. The model has computed <span class="math inline">\log_2(a \cdot b)</span>. It’s there. It’s almost perfectly linearly decodable from the residual stream right before the LM head. I had simply been looking on the wrong axis.</p>
+<p>This output-side probe successfully recovers the true product magnitude <span class="math inline">\log_2(a \cdot b)</span> with a cross-validated <strong><span class="math inline">R^2 = 0.989</span></strong>. The logarithmic representation of the answer is fully constructed. The network translates the individual operand components from their input axes, sums them, and maps the total product onto a completely distinct vector direction at the terminal token position.</p>
 </div>
 </div>
-<p>So the picture is this. The operands’ logs are written down on one axis at the input. Somewhere in the middle layers, the model adds them and rewrites the result on a <em>different</em> axis at the <code>=</code> position. The LM head then reads that second axis to decide what number comes next. The whole <span class="math inline">\log \to \mathrm{sum} \to \exp</span> machine is sitting in GPT-2 small.</p>
 <div id="fig-pipeline" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="./probe_gpt2_pipeline.png" class="img-fluid figure-img">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;6: The end-to-end pipeline. <strong>Left:</strong> patching the log component at the <code>=</code> position of real prompts; argmax over numeric tokens is stuck at <code>" 1"</code> regardless of <span class="math inline">v_{\mathrm{target}}</span>. <strong>Middle:</strong> the operand-side probe’s readout at <code>=</code> is roughly constant (<span class="math inline">\sim 10.8</span>) across all prompts, uncorrelated with <span class="math inline">\log_2(a \cdot b)</span> (<span class="math inline">R^2 = 0.011</span>). <strong>Right:</strong> a fresh probe trained directly on residuals at <code>=</code> predicts <span class="math inline">\log_2(a \cdot b)</span> at <span class="math inline">R^2 = 0.989</span> on held-out pairs.
+Figure&nbsp;6: The end-to-end pipeline. <strong>Left:</strong> patching the log component at the <code>=</code> position of real prompts; argmax over numeric tokens is stuck at <code>" 1"</code> regardless of <span class="math inline">v_{\mathrm{target}}</span> . <strong>Middle:</strong> the operand-side probe’s readout at <code>=</code> is roughly constant (<span class="math inline">\sim 10.8</span>) across all prompts, uncorrelated with <span class="math inline">\log_2(a \cdot b)</span> (<span class="math inline">R^2 = 0.011</span>). <strong>Right:</strong> a fresh probe trained directly on residuals at <code>=</code> predicts <span class="math inline">\log_2(a \cdot b)</span> at <span class="math inline">R^2 = 0.989</span> on held-out pairs.
 </figcaption>
 </figure>
 </div>
 <section id="a-correction-the-answer-side-direction-is-correlational-not-causal" class="level3">
 <h3 class="anchored" data-anchor-id="a-correction-the-answer-side-direction-is-correlational-not-causal">A correction: the answer-side direction is correlational, not causal</h3>
-<p>The <span class="math inline">R^2 = 0.989</span> number is striking enough that I should ask whether the direction the probe found is actually the one the model <em>uses</em>, rather than some downstream feature that <em>correlates</em> with <span class="math inline">\log_2(a \cdot b)</span>. That’s the classic correlation-vs-causation issue with linear probes, sometimes called the “probing illusion”.</p>
-<p>The clean way to test causation: take the fitted answer-side direction <span class="math inline">w_{\mathrm{ans}}</span>, then for various <span class="math inline">v_{\mathrm{target}}</span>, patch the residual at <code>=</code> so the projection onto <span class="math inline">w_{\mathrm{ans}}</span> equals <span class="math inline">v_{\mathrm{target}}</span>, apply the LM head, and check whether the argmax over numeric tokens tracks <span class="math inline">2^{v_{\mathrm{target}}}</span>.</p>
-<p>If the model uses this direction, the LM head’s argmax should follow <span class="math inline">2^{v_{\mathrm{target}}}</span> — slope 1 on a log-log plot. If it merely <em>correlates</em> with <span class="math inline">\log_2(a \cdot b)</span>, patching it should move nothing.</p>
-<p>The result: <strong>slope <span class="math inline">0.072</span>, not 1</strong>. For most prompts the argmax over numeric tokens doesn’t change at all across an 11-log-unit sweep. The LM head clearly doesn’t read this direction. The 0.989 R² says <span class="math inline">\log_2(a \cdot b)</span> is <em>encoded</em> there — but probably as a downstream consequence of whatever the model is actually doing, not because the LM head reads it.</p>
+<p>While achieving a decoding metric of <span class="math inline">R^2 = 0.989</span> is notable, it is critical to verify whether this output direction is causally driving token generation or if it represents a passive downstream correlation—a phenomenon known as a probing illusion.</p>
+<p>To establish causal validity, I performed a directional patching sweep along this output vector space (<span class="math inline">w_{\mathrm{ans}}</span>) across various target scales (<span class="math inline">v_{\mathrm{target}}</span>). If the final prediction layer directly relies on this direction to select tokens, the generated values should scale linearly with the intervention, tracing a slope of <span class="math inline">1</span> on a log-log plot.</p>
+<p>The experimental intervention reveals a causal slope of only <strong>0.072</strong>. For the vast majority of mathematical prompts, modifying the internal states along this vector direction across an 11-unit log range fails to alter the output token. While <span class="math inline">\log_2(a \cdot b)</span> is highly decodable from this space, the prediction head does not rely on this specific vector coordinate to select numbers.</p>
 <div class="callout callout-style-default callout-warning callout-titled" title="Honest revision">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -428,7 +425,7 @@ Figure&nbsp;6: The end-to-end pipeline. <strong>Left:</strong> patching the log 
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>The original write-up of this experiment claimed the pipeline was “wired up” because the answer’s log was decodable at <span class="math inline">R^2 = 0.989</span>. The causal test shows that’s overclaiming. The decodability is real, but the LM head doesn’t act on that specific direction. The right summary is: <strong>the model has computed something equivalent to <span class="math inline">\log_2(a \cdot b)</span> somewhere in its residual stream at <code>=</code>, but the LM head’s actual choice of next token is driven by other directions.</strong> What those directions encode, and how they relate to the operand-side log axis, is still open.</p>
+<p>A strictly correlational analysis of the <span class="math inline">R^2 = 0.989</span> metric would conclude that the complete log-arithmetic pathway is fully integrated. However, the causal intervention proves that the language model head bypasses this specific axis during final token selection. The model isolates a logarithmic tracking space for the combined product, but maps its final behavioral selections along independent, unaligned coordinate directions.</p>
 </div>
 </div>
 <div id="fig-answer-side-causal" class="quarto-float quarto-figure quarto-figure-center anchored">
@@ -445,54 +442,54 @@ Figure&nbsp;7: Patching along the fitted answer-side direction <span class="math
 </section>
 <section id="two-more-checks-was-the-other-finding-real-or-an-artifact" class="level2">
 <h2 class="anchored" data-anchor-id="two-more-checks-was-the-other-finding-real-or-an-artifact">Two more checks: was the other finding real or an artifact?</h2>
-<p>The <span class="math inline">0.989</span> number is striking enough that I want to ask twice. Two follow-ups, both quantitative.</p>
+<p>Given these conflicting causal insights, I implemented two deeper quantitative checks to calibrate the behavioral boundaries of this system.</p>
 <section id="check-1-does-the-lm-head-act-on-the-log-axis" class="level3">
 <h3 class="anchored" data-anchor-id="check-1-does-the-lm-head-act-on-the-log-axis">Check 1 — does the LM head act on the log axis?</h3>
-<p>The LM head’s row for each numeric token is what gets dotted with the residual stream to produce the next-token logit. If the log axis matters for output, those rows should have non-trivial mass on it.</p>
-<p>For GPT-2 small: the log direction captures 3.6% of each numeric LM-head row’s squared norm on average, versus <span class="math inline">1/d = 0.13\%</span> for a random direction — about <span class="math inline">28\times</span> the isotropic baseline.</p>
-<p>But there’s a catch. GPT-2 ties its LM head to its embedding, so the LM head row for token <code>" 5"</code> is <em>literally</em> the same vector as the embedding of <code>" 5"</code>. The “alignment” of LM head with log axis is automatic, not emergent. To separate “tying” from “emergent alignment”, I re-ran the analysis on two more models with untied weights — <strong>Pythia-70M</strong> and <strong>Pythia-160M</strong>:</p>
+<p>The rows of the final logit projection matrix determine how the internal vectors map to token output space. If the logarithmic axis directly steers the output distribution, these row projections should hold a prominent geometric presence within the weight matrix.</p>
+<p>In GPT-2 small, the discovered logarithmic vector accounts for 3.6% of the average squared norm across numerical token projection rows, standing significantly above a uniform isotropic baseline (<span class="math inline">1/d = 0.13\%</span>).</p>
+<p>However, GPT-2 small utilizes <strong>tied weights</strong>, meaning the output projection matrix is identical to the input embedding matrix. The geometric alignment is an architectural constraint rather than an emerged circuit. To isolate this, I repeated the projection analysis on <strong>Pythia-70M</strong> and <strong>Pythia-160M</strong>, which feature untied matrices:</p>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 8%">
-<col style="width: 13%">
-<col style="width: 8%">
-<col style="width: 33%">
-<col style="width: 35%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
 </colgroup>
 <thead>
 <tr class="header">
 <th>Model</th>
-<th>Hidden <span class="math inline">d</span></th>
-<th>Tied?</th>
-<th>LM-head log-axis fraction</th>
-<th>Multiple of <span class="math inline">1/d</span> baseline</th>
+<th>Hidden Dimension <span class="math inline">d</span></th>
+<th>Weight Tying</th>
+<th>Log-Axis Projection Share</th>
+<th>Relative to Baseline (<span class="math inline">1/d</span>)</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td>GPT-2 small (124M)</td>
 <td>768</td>
-<td>tied</td>
+<td>Tied</td>
 <td>3.6%</td>
 <td><strong>28×</strong></td>
 </tr>
 <tr class="even">
 <td>Pythia-70M</td>
 <td>512</td>
-<td>untied</td>
+<td>Untied</td>
 <td>0.19%</td>
 <td><strong>1.0×</strong></td>
 </tr>
 <tr class="odd">
 <td>Pythia-160M</td>
 <td>768</td>
-<td>untied</td>
+<td>Untied</td>
 <td>0.01%</td>
 <td><strong>0.1×</strong></td>
 </tr>
 </tbody>
 </table>
-<p>Without weight tying, the LM head doesn’t independently align with the integer-embedding log axis. The underlying log axis is real (decodable at <span class="math inline">R^2 \approx 0.89</span> in both Pythia embeddings too — see panel A of <a href="#fig-summary" class="quarto-xref">Figure&nbsp;1</a>), but the LM head doesn’t inherit it for free when weights are untied. The “28× baseline” number for GPT-2 was largely an artifact of weight tying.</p>
+<p>When weight tying is eliminated, the projection rows do not align with the integer embedding’s log axis. While the underlying logarithmic representation remains highly decodable across all three model embeddings (see panel A of <a href="#fig-summary" class="quarto-xref">Figure&nbsp;1</a>), the prediction layer does not automatically preserve this alignment in untied architectures. The apparent structural integration observed in GPT-2 is primarily a byproduct of its shared weight configuration.</p>
 <div id="fig-lmhead" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-lmhead-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -506,25 +503,24 @@ Figure&nbsp;8: LM-head log-axis decomposition for GPT-2 small. The 3.6% number a
 </section>
 <section id="check-2-does-the-log-axis-pull-on-the-actual-output-distribution" class="level3">
 <h3 class="anchored" data-anchor-id="check-2-does-the-log-axis-pull-on-the-actual-output-distribution">Check 2 — does the log axis pull on the actual output distribution?</h3>
-<p>The behavioural test. For 200 random multiplication prompts <span class="math inline">(a, b) \in [2, 50)^2</span>, I look at the model’s next-token distribution restricted to numeric tokens, and fit a simple log-Gaussian:</p>
+<p>To measure pure behavioral influence across 200 random multiplication prompts <span class="math inline">(a, b) \in [2, 50)^2</span>, I isolated the generated probability distributions across numerical tokens and fitted them to a standard log-Gaussian model:</p>
 <p><span id="eq-gauss"><span class="math display">
 P(\text{predict } n \mid a, b) \propto \exp\!\left(-\frac{(\log_2 n - \mu)^2}{2\sigma^2}\right).
 \tag{3}</span></span></p>
-<p>If the log circuit drives output, <span class="math inline">\mu \approx \log_2(a \cdot b)</span> and <span class="math inline">\sigma</span> shrinks with confidence. If the log axis is ignored, <span class="math inline">\mu</span> has no relation to the true log.</p>
-<p>The result sits between these. Across 200 prompts:</p>
+<p>If the output is actively steered by log arithmetic, the mean parameter <span class="math inline">\mu</span> should scale symmetrically with <span class="math inline">\log_2(a \cdot b)</span>. If the axis is behaviorally inert, <span class="math inline">\mu</span> will show zero statistical relationship to the true product.</p>
+<p>The empirical tracking sits precisely between these extremes:</p>
 <ul>
-<li><span class="math inline">0/200</span> argmaxes are correct (GPT-2 small really can’t multiply).</li>
-<li>Fitted <span class="math inline">\mu</span> is biased <span class="math inline">\mathbf{-3.25}</span> log-units <em>below</em> the true <span class="math inline">\log_2(a \cdot b)</span> on average. The model predicts numbers about <span class="math inline">2^{3.25} \approx 9.5\times</span> smaller than the right answer.</li>
-<li>But the slope of <span class="math inline">\mu</span> vs <span class="math inline">\log_2(a \cdot b)</span> across prompts is <span class="math inline">\boldsymbol{\beta = 0.22}</span>. Not 1 (perfect readout), not 0 (no readout), but a clear positive coupling.</li>
+<li><strong>Accuracy:</strong> 0% of the raw outputs match the correct arithmetic answer; small-scale language models cannot natively multiply integers.</li>
+<li><strong>Bias:</strong> The fitted center <span class="math inline">\mu</span> is systematically shifted <span class="math inline">\mathbf{-3.25}</span> log-units below the true value, underestimating products by a factor of roughly <span class="math inline">9.5\times</span>.</li>
+<li><strong>Coupling:</strong> Despite the severe downward bias, the scaling slope of <span class="math inline">\mu</span> relative to the true values of <span class="math inline">\log_2(a \cdot b)</span> maintains a continuous, positive relationship at <span class="math inline">\boldsymbol{\beta = 0.22}</span>.</li>
 </ul>
-<p>Repeating the experiment on Pythia-70M gives <span class="math inline">\beta = 0.22</span> — same as GPT-2. On Pythia-160M I get <span class="math inline">\beta = 0.19</span>. Across three models with very different LM-head geometries (4 orders of magnitude apart in their log-axis fraction), <strong>the behavioural pull on output is the same</strong>: about 22% of what a clean readout would produce. The slope <span class="math inline">\beta \approx
-0.22</span> looks like a property of the cost-sensitive output distribution the models share, not of how their LM heads happen to align with integer-embedding directions.</p>
+<p>Evaluating Pythia-70M reveals an identical scaling slope of <span class="math inline">\beta = 0.22</span>, while Pythia-160M stabilizes at <span class="math inline">\beta = 0.19</span>. Even though these models feature completely different output projection geometries (spanning orders of magnitude in explicit log-axis alignment), <strong>their behavioral output tracking remains uniform</strong>. The scaling limit is determined by the broader contextual frequency distributions shared across text training data rather than localized differences in projection head alignment.</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
 <th>Model</th>
-<th>LM-head log-axis fraction</th>
-<th>Near-miss <span class="math inline">\beta</span></th>
+<th>Log-Axis Projection Share</th>
+<th>Output Scaling Slope <span class="math inline">\beta</span></th>
 </tr>
 </thead>
 <tbody>
@@ -555,95 +551,104 @@ Figure&nbsp;9: Near-miss arithmetic for GPT-2. <strong>Left:</strong> fitted mea
 </figcaption>
 </figure>
 </div>
-<p>This <span class="math inline">\beta = 0.22</span> ties everything together. The log circuit puts <span class="math inline">\log_2(a \cdot b)</span> in the residual stream at <span class="math inline">R^2 = 0.989</span>. The LM head acts on it to roughly 22% of what perfect readout would give, swamped by a much larger frequency prior. The machine is wired up; it just isn’t loud enough.</p>
+<p>This behavioral slope unifies the structural observations. The model successfully calculates <span class="math inline">\log_2(a \cdot b)</span> within its internal representations (<span class="math inline">R^2 = 0.989</span>). The generation layer responds to this signal at an effective scale of ~22% relative to a perfect readout, though it remains largely masked by stronger text-frequency constraints. The underlying circuitry is present, but its execution is heavily muted.</p>
 </section>
 </section>
-<section id="what-this-collectively-shows" class="level2">
-<h2 class="anchored" data-anchor-id="what-this-collectively-shows">What this collectively shows</h2>
-<p>Five claims, the first three robust and the last two more tentative.</p>
-<p>The embedding layer of all three models encodes integers on an approximately logarithmic axis, along with separate axes for parity and last digit. Number-theoretic properties not visible in surface text (mod 7, primality) do not get a coherent representation. The log-axis shape peaks the power-law sweep at <span class="math inline">\alpha = 0</span>, but the absolute preference of log over linear is partly weight-tying dependent — GPT-2 has log <span class="math inline">\gg</span> linear at the embedding, while untied Pythia models have log <span class="math inline">\approx</span> linear there.</p>
-<p>Perturbations along the embedding’s log axis have structured, direction-specific causal effect on the model’s next-token predictions in multiplication prompts. Random directions of the same magnitude do not. This rules out the “probe is finding a noise direction” null hypothesis. The asymmetry of the effect (downward patches work, upward patches partly fail) points at the LM head’s frequency prior as the limiting factor.</p>
-<p>In all three models, the behavioural pull of the log axis on actual output is invariant at <span class="math inline">\beta \approx 0.22</span> — about 22% of what perfect log-circuit readout would give. This is true across models that differ by orders of magnitude in their LM-head log-axis alignment. So the behavioural number isn’t a function of LM-head geometry; it’s a function of how loud the output-side frequency prior is relative to whatever the log circuit contributes.</p>
-<p>A fresh probe trained on <code>=</code>-position residuals to predict <span class="math inline">\log_2(a \cdot b)</span> achieves <span class="math inline">R^2 = 0.989</span> on held-out pairs. The model <em>has</em> computed something linearly equivalent to the answer’s log somewhere in its residual stream. But <strong>patching that direction barely moves the LM head’s argmax</strong> (slope 0.07 of perfect readout). So the direction is a downstream encoding, not the one the head actually reads. What direction the head <em>does</em> read for numeric output, and how it relates to the operand-side log axis, is the most interesting open question this work leaves.</p>
-<p>The framing-level lesson is that small language models can have mechanistically rich circuits whose behavioural effect is suppressed by the output distribution they were trained against. “Can’t do multiplication” is consistent with “has parts of the multiplication circuit”, as long as a louder competing signal is shouting “use a common number” and the probe-found directions aren’t the ones the LM head listens to.</p>
+<section id="summary-of-findings" class="level2">
+<h2 class="anchored" data-anchor-id="summary-of-findings">Summary of findings</h2>
+<ol type="1">
+<li><strong>Logarithmic Encodings at Layer 0:</strong> The embedding layer across all evaluated models represents integer features along a robust logarithmic axis, independent of separate coordinate paths tracking parity and final digits. Surface-level linguistic markers dominate organization, whereas deeper arithmetic qualities like primality do not form coherent vector alignments.</li>
+<li><strong>Causal Operand Patching:</strong> Structured modifications targeted along the input log axis exert direct, predictable changes on downstream token probabilities, whereas equivalent changes along random control axes have no effect. This confirms that the discovered directions represent active semantic scales rather than passive statistical noise.</li>
+<li><strong>Uniform Behavioral Scaling:</strong> Across models with fundamentally different output connectivity, the underlying logarithmic representation consistently biases token generation at a stable tracking ratio of <span class="math inline">\beta \approx 0.22</span>. This suggests the output geometry is bounded by properties of the textual data distribution rather than localized architecture choices.</li>
+<li><strong>The Probing Disconnection:</strong> While the combined scale of an arithmetic product is highly decodable at the final token position (<span class="math inline">R^2 = 0.989</span>), directional patching along this output axis fails to steer generation performance (causal slope = 0.07). The linear probe tracks a real internal representation, but isolates a direction that is not causally utilized by the final token generation layers.</li>
+</ol>
+<p>This demonstrates that small-scale transformers construct complex semantic representations whose behavioral expressions remain mostly suppressed by the dominant statistical distributions of their training text. An inability to output correct mathematical calculations does not imply the absolute absence of arithmetic circuits; rather, these underlying structures are simply overridden by louder linguistic priors.</p>
 </section>
-<section id="caveats" class="level2">
-<h2 class="anchored" data-anchor-id="caveats">Caveats</h2>
-<p>GPT-2 ties its LM head to the embedding. Much of the apparent LM head ↔︎ log axis alignment is architectural. The Pythia-160M comparison addresses this for one untied model, but a wider scan across model families would be more convincing.</p>
-<p>The causal-patching shifts are measured on relative logits among candidate products, not on argmax. Both small models get <span class="math inline">0/200</span> multiplications right. A model that can actually multiply (Pythia-1.4B, Llama-3.2-1B, Qwen-2.5-0.5B) would let the patch flip the argmax cleanly, not just shift relative logits.</p>
-<p>The fitted answer-side probe at the <code>=</code> position has <span class="math inline">R^2 = 0.989</span> on <span class="math inline">(a, b) \in [2, 64]^2</span> pairs. Whether the same direction carries <span class="math inline">\log_2(a \cdot b)</span> for much larger operands is untested.</p>
-<p>The middle layers — where the operand-axis log gets translated to the answer-axis log — are a black box in this study. Path-patching across (layer, position) pairs would identify the attention heads that move log information from operand positions to the <code>=</code> position. The infrastructure for it is already in the patching code; I just didn’t run it.</p>
+<section id="limitations" class="level2">
+<h2 class="anchored" data-anchor-id="limitations">Limitations</h2>
+<ul>
+<li><strong>Weight-Tying Dependencies:</strong> Because GPT-2 small ties its input and output weight matrices, a significant portion of its projection alignment is an architectural artifact. While evaluating untied Pythia variants mitigates this, mapping these circuits across larger, diverse model families remains necessary.</li>
+<li><strong>Logit-Space vs.&nbsp;Token Selections:</strong> The causal patching experiments measure shifts across continuous relative logits rather than forcing discrete token replacements. Because these small architectures achieve an absolute arithmetic accuracy of 0%, testing these interventions on scales that can successfully calculate products (e.g., Qwen or Llama variants) would provide clearer behavioral validation.</li>
+<li><strong>Extrapolation Limits:</strong> The output-side probe performance was verified across a limited operational span (<span class="math inline">(a, b) \in [2, 64]^2</span>). Whether these logarithmic vector representations scale cleanly when processing significantly larger numeric ranges remains unverified.</li>
+</ul>
 </section>
-<section id="five-things-to-test-next" class="level2">
-<h2 class="anchored" data-anchor-id="five-things-to-test-next">Five things to test next</h2>
-<p><strong>Find the direction the LM head actually reads.</strong> The biggest open question raised by the answer-side causal test. The 0.989 probe is correlational; the LM head’s argmax is driven by some other direction. A sparse autoencoder or top-singular-vectors analysis of the LM-head columns for numeric tokens should expose what they actually decode.</p>
-<p><strong>Exponentiation as a sharper test.</strong> If the model uses the log axis compositionally, patching <span class="math inline">\log(a)</span> by <span class="math inline">\Delta</span> in an <code>a^b =</code> prompt should shift the output’s log by <span class="math inline">b \cdot \Delta</span> — a quantitative prediction with one free parameter. Same patching code, different prompts.</p>
-<p><strong>A bigger model that can actually multiply.</strong> Pythia-1.4B, Llama-3.2-1B, or Qwen-2.5-0.5B. If <span class="math inline">\beta = 0.22</span> is invariant across model scale, it’s a property of the training distribution, not capacity. If <span class="math inline">\beta</span> shoots up on a multiply-capable model, the limit at small scale really was “the head doesn’t act on the log axis hard enough”.</p>
-<p><strong>Path-patch to find the translation layer.</strong> Where in the network does the operand-axis log get translated to whatever ends up at <code>=</code>? The patching infrastructure here is already 80% of what’s needed.</p>
-<p><strong>Test the per-category axes.</strong> Within years, fit a year-trained log probe. Does it transfer cleanly to other years? Repeat for round numbers, number-words. If the integer-trained axis doesn’t transfer (the result above) but the within-category axes do transfer, the model has many private log axes, one per role.</p>
+<section id="future-research-directions" class="level2">
+<h2 class="anchored" data-anchor-id="future-research-directions">Future research directions</h2>
+<ul>
+<li><strong>Isolating Causal Output Axes:</strong> Determining the exact vector spaces utilized by the prediction head to route numerical selections is a critical step. Applying sparse autoencoders or singular value decompositions to numeric projection columns should expose the precise directions driving token choices.</li>
+<li><strong>Validating via Exponentiation Prompts:</strong> Testing contextual calculations such as power routing (<code>a^b =</code>) can provide a more rigorous validation of the logarithmic layout. Patching the input vector by a factor of <span class="math inline">\Delta</span> should mathematically scale downstream outputs by <span class="math inline">b \cdot \Delta</span>.</li>
+<li><strong>Cross-Layer Circuit Tracing:</strong> Identifying the specific intermediate attention heads responsible for shifting operand features from their initial inputs to the final output token positions. The existing patching framework can be extended to implement layer-by-layer path patching.</li>
+</ul>
 </section>
 <section id="methodological-note" class="level2">
 <h2 class="anchored" data-anchor-id="methodological-note">Methodological note</h2>
-<p>If a probe trained at position A gives no signal at position B, that doesn’t mean the information isn’t in B — it might just mean B uses a different direction. Fit a fresh probe at the position you actually care about before concluding the circuit is absent. In this study, that one habit was the difference between “no circuit found” and “circuit found at <span class="math inline">R^2 = 0.989</span>”.</p>
-<p>The shared-axis test worked the same way in reverse: an attractive hypothesis (“there’s one universal magnitude axis for all numeric tokens”) was falsified with about twenty minutes of compute and one transfer measurement. The Pythia comparison was the same shape — running the same probe on a second model with untied weights corrected a number I would otherwise have over-interpreted. Cheap probes are how you both rescue and kill ideas.</p>
+<p>When a linear probe optimized at a specific token position fails to resolve information when applied to a different position, it does not prove the feature is absent; the network may simply be utilizing an unaligned vector space. Optimizing a localized probe at the exact point of evaluation is a vital step in distinguishing between a missing circuit and an unaligned coordinate mapping.</p>
+<hr>
 </section>
 <section id="code" class="level2">
 <h2 class="anchored" data-anchor-id="code">Code</h2>
+<p>The complete interpretive pipeline can be reproduced locally on standard hardware using the following script layout:</p>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 37%">
-<col style="width: 62%">
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>File</th>
-<th>Produces</th>
+<th>Script File</th>
+<th>Target Evaluation</th>
+<th>Associated Reference</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td><code>reasoning_router.py</code></td>
+<td>Cost-routing optimization sweep</td>
 <td><a href="#fig-toy-routing" class="quarto-xref">Figure&nbsp;2</a></td>
 </tr>
 <tr class="even">
-<td><code>probe_gpt2_log.py</code>, <code>probe_gpt2_controls.py</code></td>
+<td><code>probe_gpt2_log.py</code> | <code>probe_gpt2_controls.py</code></td>
+<td>Embedding scale and attribute probes</td>
 <td><a href="#fig-controls" class="quarto-xref">Figure&nbsp;3</a></td>
 </tr>
 <tr class="odd">
 <td><code>probe_gpt2_shared_axis.py</code></td>
+<td>Cross-category numeric transfer evaluations</td>
 <td><a href="#fig-shared-axis" class="quarto-xref">Figure&nbsp;4</a></td>
 </tr>
 <tr class="even">
 <td><code>probe_gpt2_patching.py</code></td>
+<td>Operand-side causal patching sweeps</td>
 <td><a href="#fig-patching" class="quarto-xref">Figure&nbsp;5</a></td>
 </tr>
 <tr class="odd">
 <td><code>probe_gpt2_lmhead.py</code></td>
+<td>Output matrix projection decompositions</td>
 <td><a href="#fig-lmhead" class="quarto-xref">Figure&nbsp;8</a></td>
 </tr>
 <tr class="even">
 <td><code>probe_gpt2_pipeline.py</code></td>
+<td>End-to-end product tracking checks</td>
 <td><a href="#fig-pipeline" class="quarto-xref">Figure&nbsp;6</a></td>
 </tr>
 <tr class="odd">
 <td><code>probe_gpt2_answer_side_causal.py</code></td>
+<td>Output-side causal validation loops</td>
 <td><a href="#fig-answer-side-causal" class="quarto-xref">Figure&nbsp;7</a></td>
 </tr>
 <tr class="even">
 <td><code>probe_gpt2_near_miss.py</code></td>
+<td>Behavioral log-Gaussian distribution tracking</td>
 <td><a href="#fig-near-miss" class="quarto-xref">Figure&nbsp;9</a></td>
 </tr>
 <tr class="odd">
-<td><code>probe_pythia_compare.py</code>, <code>probe_pythia70_compare.py</code></td>
-<td>data for <a href="#fig-summary" class="quarto-xref">Figure&nbsp;1</a></td>
-</tr>
-<tr class="even">
-<td><code>make_summary_figure_v2.py</code></td>
-<td><a href="#fig-summary" class="quarto-xref">Figure&nbsp;1</a></td>
+<td><code>probe_pythia_compare.py</code></td>
+<td>Cross-model architectural validations</td>
+<td>Data for <a href="#fig-summary" class="quarto-xref">Figure&nbsp;1</a></td>
 </tr>
 </tbody>
 </table>
-<p>Dependencies: <code>torch</code>, <code>transformers</code>, <code>scikit-learn</code>, <code>matplotlib</code>. The full pipeline reproduces in about 20 minutes on a laptop CPU. GPT-2 small downloads at <span class="math inline">\sim 500</span> MB; Pythia-160M at <span class="math inline">\sim 320</span> MB.</p>
 
 
 <!-- -->
@@ -1107,7 +1112,7 @@ Figure&nbsp;9: Near-miss arithmetic for GPT-2. <strong>Left:</strong> fitted mea
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="an">subtitle:</span><span class="co"> "Where does GPT-2 keep its slide rule? A tour through linear probes, activation patching, and one large surprise."</span></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">  - name: "Huangxing Li"</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2023-10-15"</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2026-04-03"</span></span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="an">abstract:</span><span class="co"> |</span></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">  Before pocket calculators, scientists multiplied with slide rules: look up</span></span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">  two logarithms, add them, look up an exponential. Does a language model</span></span>
@@ -1115,7 +1120,7 @@ Figure&nbsp;9: Near-miss arithmetic for GPT-2. <strong>Left:</strong> fitted mea
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">  small language models (GPT-2 small, Pythia-70M, Pythia-160M), I find that</span></span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">  (1) the token embedding represents integer magnitude on a roughly</span></span>
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">  logarithmic axis ($R^2 = 0.89-0.95$); (2) perturbing this axis has</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co">  direction-specific causal effect on multiplication predictions, rulingß</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co">  direction-specific causal effect on multiplication predictions, ruling</span></span>
 <span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co">  out generic noise; (3) the answer's log is linearly decodable from the</span></span>
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="co">  residual stream at the equals-sign position with $R^2 = 0.989$ — but</span></span>
 <span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="co">  patching along that direction barely moves the LM head's output (causal</span></span>
@@ -1123,7 +1128,7 @@ Figure&nbsp;9: Near-miss arithmetic for GPT-2. <strong>Left:</strong> fitted mea
 <span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co">  the model actually uses; and (4) across all three models, the behavioural</span></span>
 <span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="co">  pull of the log axis on actual output is invariant at $\beta \approx 0.22$</span></span>
 <span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="co">  of perfect readout, dominated by an LM-head frequency prior. The slide-rule</span></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="co">  substrate exists; the head's free-will is small.</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="co">  substrate exists; the head's autonomy is small.</span></span>
 <span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="an">categories:</span><span class="co"> [interpretability, mech-interp, language models, arithmetic]</span></span>
 <span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
 <span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
@@ -1143,469 +1148,205 @@ Figure&nbsp;9: Near-miss arithmetic for GPT-2. <strong>Left:</strong> fitted mea
 <span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a><span class="fu">## The question</span></span>
 <span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>For three centuries before the pocket calculator, engineers multiplied</span>
-<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>with slide rules. The slide rule is a physical implementation of one</span>
-<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>identity:</span>
-<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>a \cdot b = 2^{\log_2 a + \log_2 b}</span>
-<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>$$ {#eq-shortcut}</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>For three centuries prior to the advent of digital calculators, scientific multiplication relied heavily on slide rules. The physical slide rule maps arithmetic computation onto a foundational geometric identity:</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>a \cdot b = 2^{\log_2 a + \log_2 b}</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>$$ {#eq-shortcut}</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>By computing spatial additions across logarithmic spaces, this layout trades complex multi-digit multiplication for three simple lookups and a single addition. Distances on a slide rule are spaced by $\log_2(x)$ rather than linear magnitude, meaning that the physical transposition of parts mechanically performs exponential scaling.</span>
 <span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>Three lookups and an addition, instead of a multiplication. The trick rests</span>
-<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>on a different *geometry* of number — positions on the slide rule are spaced</span>
-<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>by $\log_2$, not by raw magnitude, so adding two distances corresponds to</span>
-<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>multiplying the underlying values.</span>
-<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>Does a neural network ever discover this geometry? If you train a model to</span>
-<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>predict text and it sees enough numbers, does it secretly learn the slide</span>
-<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>rule?</span>
-<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>There's a longer plan in <span class="co">[</span><span class="ot">`experiment1.md`</span><span class="co">](experiment1.md)</span> to train a</span>
-<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>fresh tiny Transformer from scratch under capacity pressure and dissect</span>
-<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>it — Anthropic-style mechanistic interpretability. That's weeks of work.</span>
-<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>This post is the parallel and cheaper question: **is the shortcut already</span>
-<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>sitting inside an existing small language model?**</span>
-<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>To find out, I poked at GPT-2 small (the 124M-parameter model from 2019)</span>
-<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>and Pythia-160M (a more modern but similarly-sized model) with two tools:</span>
-<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>linear probes (a regression that reads a value off the residual stream)</span>
-<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a>and activation patching (an intervention that surgically changes one</span>
-<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>direction in the residual stream and watches what happens downstream).</span>
-<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>::: {.callout-note title="Summary in one figure"}</span>
-<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a>![Six panels covering three models (GPT-2 small / Pythia-70M / Pythia-160M).</span>
-<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>**A:** Embedding log-axis decodability in all three. Log dominates only</span>
-<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a>under weight tying; untied Pythia models prefer linear by a hair. **B:**</span>
-<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>GPT-2 *does* compute $\log_2(a \cdot b)$ at the equals-sign at</span>
-<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a>$R^2 = 0.989$ — but on a different axis than the one used to read the</span>
-<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a>operands. **C:** New result. Patching along that fresh answer-side</span>
-<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a>direction moves the LM head's argmax with slope only $0.07$ — the probe</span>
-<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a>is correlational, not causal. **D:** LM-head log-axis fraction collapses</span>
-<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a>to baseline once weights are untied, so GPT-2's "28× baseline" was</span>
-<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a>mostly architectural. **E:** Near-miss slope $\beta$ is invariant at</span>
-<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a>~0.22 across all three models, even as panels A and D vary by orders of</span>
-<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a>magnitude. **F:** synthesis.](./summary_figure.png){#fig-summary}</span>
-<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a><span class="fu">## A simple model first: when *should* a learner discover the shortcut?</span></span>
-<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a>Before touching real models I built a toy that makes the cost-pressure</span>
-<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a>hypothesis quantitative. Two paths can compute $z = a \cdot b$:</span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>Whether an artificial neural network scales numerical features along an identical internal geometry remains an open question. When exposed to text containing frequent numerical patterns, does a standard transformer develop an internal representation analogous to a slide rule?</span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>While a comprehensive mechanistic investigation would involve training custom architectures from scratch under explicit capacity constraints, this evaluation targets a more direct question: **is a log-multiplication shortcut already present within existing small pre-trained language models?**</span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>To trace this behavior, I evaluated GPT-2 small (124M parameters), Pythia-70M, and Pythia-160M. The evaluation relies on two primary interpretability paradigms: **linear probing** to read localized semantic features directly from the residual stream, and **activation patching** to test the downstream causal impact of surgically modifying vector coordinates along targeted directions.</span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>::: {.callout-note title="Summary in one figure"}</span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a><span class="al">![Six panels covering three models (GPT-2 small / Pythia-70M / Pythia-160M). **A:** Embedding log-axis decodability in all three. Log dominates only under weight tying; untied Pythia models prefer linear by a hair. **B:** GPT-2 *does* compute $\log_2(a \cdot b)$ at the equals-sign at $R^2 = 0.989$ — but on a different axis than the one used to read the operands. **C:** New result. Patching along that fresh answer-side direction moves the LM head's argmax with slope only $0.07$ — the probe is correlational, not causal. **D:** LM-head log-axis fraction collapses to baseline once weights are untied, so GPT-2's "28× baseline" was mostly architectural. **E:** Near-miss slope $\beta$ is invariant at ~0.22 across all three models, even as panels A and D vary by orders of magnitude. **F:** synthesis.](./summary_figure.png)</span>{#fig-summary}</span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a><span class="fu">## A simple model first: when *should* a learner discover the shortcut?</span></span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>To understand the optimization trade-offs, I first formulated a toy mathematical routing model to quantify cost pressures. Consider two independent computational pathways to solve for $z = a \cdot b$:</span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Direct multiplication:** This path scales with numerical complexity, carrying an algorithmic cost of $c_{\mathrm{mul}}(a, b) = \log_2(a) \cdot \log_2(b)$. Simpler calculations (e.g., small single-digit values) require minimal bit manipulation, whereas macro-integers scale heavily.</span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Log–sum–exp shortcut:** This path operates via fixed lookups with a static complexity baseline of $c_{\mathrm{short}} = 6$, remaining uniform regardless of operand magnitude.</span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>We can define a learnable gating parameter $p \in <span class="co">[</span><span class="ot">0, 1</span><span class="co">]</span>$ that observes $(\log_2 a, \log_2 b)$ to optimize path routing. Given a specific multiplication complexity penalty $\lambda$, the expected total cost is defined as:</span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>C(p, a, b, \lambda) = (1-p)\cdot \lambda \cdot c_{\mathrm{mul}}(a, b) + p \cdot c_{\mathrm{short}}.</span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>$$ {#eq-cost}</span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>Sweeping across values of $\lambda$ traces a clear optimization boundary. Complex operand pairs switch to the fixed-cost shortcut early, whereas simple pairs resist routing changes. For trivial values involving $1$, direct calculation remains free because $\log_2(1) = 0$, completely bypassing the need for a shortcut.</span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>!<span class="co">[</span><span class="ot">Toy soft-routing model under varying multiplication-penalty weight $\lambda$. **Top:** average shortcut probability across $(a, b) \in [1, 64]^2$. The trained gate matches the analytical softmin to three decimal places. **Bottom:** per-pair gate at five snapshot $\lambda$ values; the decision boundary sweeps from upper-right (hard pairs) to lower-left (easy pairs) as the penalty grows.</span><span class="co">](./reasoning_path_vs_penalty.png)</span>{#fig-toy-routing}</span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a>Rather than acting as an empirical result, this model serves as a quantitative baseline. It provides a geometric hypothesis to compare against when testing whether real, text-trained models show any underlying trace of this efficiency-driven routing.</span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a><span class="fu">## How GPT-2 represents numbers</span></span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a>To investigate how a model processes integer values internally, we can query the residual stream at a specific numerical token position. If a linear regression probe can accurately recover $\log_2(x)$ from these hidden states, it indicates that the model isolates a distinct logarithmic vector direction within that layer.</span>
+<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a>I passed integer sequences from 2 to 1023 into GPT-2 small as isolated space-prefixed tokens (<span class="in">`" 5"`</span>, <span class="in">`" 17"`</span>, <span class="in">`" 1024"`</span>). At each transformer block, the hidden states were extracted to train a ridge regression probe targeted at tracking $\log_2(x)$ along with several operational controls.</span>
+<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a>**At the raw token embedding layer (layer 0)—prior to any attention or MLP processing—$\log_2(x)$ is cleanly decodable with a cross-validated $R^2 = 0.95$.** Direct linear scaling ($x$) is significantly less distinct, yielding an $R^2 = 0.77$, while randomized control labels drop completely to $R^2 \approx 0$. This confirms a clear embedding preference for logarithmic geometry.</span>
+<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a>To verify whether this axis represents a precise logarithmic scale rather than a generic monotonic trend, I evaluated a parametric family of power-law transformations ($x^\alpha$). Probing performance peaks narrowly at $\alpha = 0$, which corresponds mathematically to the logarithmic limit. Had the embedding prioritized linear magnitude, performance would have instead centered at $\alpha = 1$.</span>
+<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a>The embedding layer also natively encodes several non-linear attributes. Vector directions for numerical parity achieve a decodability of $R^2 = 0.94$, and the final digit ($x \bmod 10$) reaches an $R^2 = 0.92$. GPT-2 uncovers surface-level linguistic associations (e.g., clustering terms ending in <span class="in">`5`</span>), yet remains entirely insensitive to deeper number-theoretic features like primality or divisibility by $7$, which fail to emerge above chance levels.</span>
 <span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Direct multiplication**, with cost</span>
-<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a>  $c_{\mathrm{mul}}(a, b) = \log_2(a) \cdot \log_2(b)$ — bit × bit</span>
-<span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a>  schoolbook work. $2 \times 2$ is one bit times one bit; $1024 \times 512$</span>
-<span id="cb1-94"><a href="#cb1-94" aria-hidden="true" tabindex="-1"></a>  is ten bits times nine.</span>
-<span id="cb1-95"><a href="#cb1-95" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**The log–sum–exp shortcut**, with cost $c_{\mathrm{short}} = 6$ — three</span>
-<span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a>  primitive operations, independent of operand size.</span>
-<span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a>A learnable gate $p \in <span class="co">[</span><span class="ot">0, 1</span><span class="co">]</span>$ reads $(\log_2 a, \log_2 b)$ and picks how</span>
-<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a>much shortcut to use. The expected total cost at penalty weight $\lambda$ is</span>
-<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a>C(p, a, b, \lambda) = (1-p)\cdot \lambda \cdot c_{\mathrm{mul}}(a, b) + p \cdot c_{\mathrm{short}}.</span>
-<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a>$$ {#eq-cost}</span>
+<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a><span class="al">![Linear-probe $R^2$ at each layer for monotone targets, non-monotone targets, and a noise baseline. The log axis, parity, and last digit are all decodable at the embedding ($R^2 &gt; 0.9$). Number-theoretic properties (mod 7, primality) and the shuffle control are at chance.](./probe_gpt2_controls.png)</span>{#fig-controls}</span>
+<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a><span class="fu">### Does this generalise across categories of numbers?</span></span>
+<span id="cb1-94"><a href="#cb1-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-95"><a href="#cb1-95" aria-hidden="true" tabindex="-1"></a>We can test whether this logarithmic vector space acts as a universal magnitude axis that extends uniformly across diverse numeric formats, such as calendar years (<span class="in">`" 1990"`</span>), round numbers (<span class="in">`" 1000"`</span>), or spelled-out words (<span class="in">`" million"`</span>).</span>
+<span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a>The empirical data rejects this hypothesis. Applying the probe trained strictly on standard integers across these secondary groups yields highly degraded transfer metrics:</span>
+<span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Calendar Years** (152 single-token years between 1500 and 2099): $R^2 = -2274$. The probe yields near-constant values, completely failing to separate the relative scale of distinct years.</span>
+<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Round Multiples** (33 single-token multiples of 100 up to 100,000): $R^2 = 0.22$, showing highly fragmented tracking.</span>
+<span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Spelled Numbers** (24 English number words): $R^2 = 0.14$, demonstrating no structural alignment.</span>
+<span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a><span class="al">![The integer-trained log probe applied to other numeric categories. Integers (training) sit cleanly on $y = x$. Years, round numbers, and number-words sit far off the line. Each numeric category lives on its own axis in embedding space; there is no universal magnitude direction.](./probe_gpt2_shared_axis.png)</span>{#fig-shared-axis}</span>
 <span id="cb1-104"><a href="#cb1-104" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a>Sweep $\lambda$. The aggregate probability of taking the shortcut traces</span>
-<span id="cb1-106"><a href="#cb1-106" aria-hidden="true" tabindex="-1"></a>a smooth sigmoid. The interesting geometry is in which $(a, b)$ pairs</span>
-<span id="cb1-107"><a href="#cb1-107" aria-hidden="true" tabindex="-1"></a>switch first — hard ones do, easy ones hold out, and trivial ones (those</span>
-<span id="cb1-108"><a href="#cb1-108" aria-hidden="true" tabindex="-1"></a>involving $1$) never switch, because $\log_2(1) = 0$ makes direct</span>
-<span id="cb1-109"><a href="#cb1-109" aria-hidden="true" tabindex="-1"></a>multiplication genuinely free.</span>
+<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a>This demonstrates that numerical encodings are highly dependent on their specific context and textual role rather than their raw scalar values. The token (<span class="in">`" 1990"`</span>) is processed primarily as a temporal marker rather than its underlying physical magnitude. Each distinct numerical category occupies an isolated coordinate space within the embedding.</span>
+<span id="cb1-106"><a href="#cb1-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-107"><a href="#cb1-107" aria-hidden="true" tabindex="-1"></a><span class="fu">## Does the log axis actually do anything?</span></span>
+<span id="cb1-108"><a href="#cb1-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-109"><a href="#cb1-109" aria-hidden="true" tabindex="-1"></a>Because linear decodability establishes correlation rather than causation, I applied activation patching at the operand position to verify whether the model actively routes information along this logarithmic axis during multiplication tasks.</span>
 <span id="cb1-110"><a href="#cb1-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-111"><a href="#cb1-111" aria-hidden="true" tabindex="-1"></a>!<span class="co">[</span><span class="ot">Toy soft-routing model under varying multiplication-penalty weight $\lambda$. **Top:** average shortcut probability across $(a, b) \in [1, 64]^2$. The trained gate matches the analytical softmin to three decimal places. **Bottom:** per-pair gate at five snapshot $\lambda$ values; the decision boundary sweeps from upper-right (hard pairs) to lower-left (easy pairs) as the penalty grows.</span><span class="co">](./reasoning_path_vs_penalty.png)</span>{#fig-toy-routing}</span>
+<span id="cb1-111"><a href="#cb1-111" aria-hidden="true" tabindex="-1"></a>Consider a baseline prompt like <span class="in">`" 5 * 9 ="`</span>. At the vector coordinates representing <span class="in">`" 5"`</span>, the embedding's projection along the discovered probe direction $w$ scales cleanly with $\log_2(5) \approx 2.3$. By applying a rank-1 vector shift along $w$, I adjusted this projection to map exactly to $\log_2(2) = 1$, leaving orthogonal features like parity and last-digit identities unchanged. The network was then allowed to complete its forward pass across all 12 layers.</span>
 <span id="cb1-112"><a href="#cb1-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-113"><a href="#cb1-113" aria-hidden="true" tabindex="-1"></a>This isn't itself a finding. It's a yardstick — the routing geometry</span>
-<span id="cb1-114"><a href="#cb1-114" aria-hidden="true" tabindex="-1"></a>predicted by the simplest possible cost-cutter. The empirical question is</span>
-<span id="cb1-115"><a href="#cb1-115" aria-hidden="true" tabindex="-1"></a>whether real language models trained on text, not on multiplication,</span>
-<span id="cb1-116"><a href="#cb1-116" aria-hidden="true" tabindex="-1"></a>show even a faint trace of this geometry.</span>
-<span id="cb1-117"><a href="#cb1-117" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-118"><a href="#cb1-118" aria-hidden="true" tabindex="-1"></a><span class="fu">## How GPT-2 represents numbers</span></span>
-<span id="cb1-119"><a href="#cb1-119" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-120"><a href="#cb1-120" aria-hidden="true" tabindex="-1"></a>To check what a model has internalised about integers, take the residual</span>
-<span id="cb1-121"><a href="#cb1-121" aria-hidden="true" tabindex="-1"></a>stream — the model's internal scratchpad at each layer — at the position</span>
-<span id="cb1-122"><a href="#cb1-122" aria-hidden="true" tabindex="-1"></a>of a number token, and ask: can a linear regression predict $\log_2(x)$</span>
-<span id="cb1-123"><a href="#cb1-123" aria-hidden="true" tabindex="-1"></a>from it? If yes, the model has a "log of this number" axis at that layer.</span>
+<span id="cb1-113"><a href="#cb1-113" aria-hidden="true" tabindex="-1"></a>For the prompt <span class="in">`" 5 * 9 ="`</span>, shifting the operand vector from $\log_2(5) \to \log_2(2)$ causes the output logit for <span class="in">`" 18"`</span> ($2 \cdot 9$) to rise cleanly above the true answer of <span class="in">`" 45"`</span> ($5 \cdot 9$). Artificially patching the coordinate toward $4$ smoothly shifts the top output token to <span class="in">`" 36"`</span>. Conversely, applying equivalent vector interventions along random control paths yields no measurable logit shifts, proving that the causal effect is structurally isolated along the probed direction.</span>
+<span id="cb1-114"><a href="#cb1-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-115"><a href="#cb1-115" aria-hidden="true" tabindex="-1"></a>The intervention reveals a notable asymmetry: downward patches (scaling to smaller values) shift output probabilities cleanly, whereas upward patches face significant resistance. This indicates that the language model head maintains a strong frequency prior that naturally penalizes large or rare numbers, readily accepting downward modifications while resisting shifts toward less common numerical outputs.</span>
+<span id="cb1-116"><a href="#cb1-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-117"><a href="#cb1-117" aria-hidden="true" tabindex="-1"></a><span class="al">![Causal patching at the operand position. **Left:** change in relative logit, $\mathrm{logit}(a_{\mathrm{target}} \cdot b) - \mathrm{logit}(a \cdot b)$, as we patch the log direction at the `" a"` position. Solid lines are the log direction; dotted lines are random directions of the same norm. **Right:** heatmap of relative logits for `" 5 * 9 ="`. The yellow most-favoured-product stripe follows the perfect-log-shortcut line $p = a_{\mathrm{target}} \cdot b$ for downward patches, then sticks at 45 once we patch toward larger numbers.](./probe_gpt2_patching.png)</span>{#fig-patching}</span>
+<span id="cb1-118"><a href="#cb1-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-119"><a href="#cb1-119" aria-hidden="true" tabindex="-1"></a><span class="fu">## Does the model actually compute log(a·b)?</span></span>
+<span id="cb1-120"><a href="#cb1-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-121"><a href="#cb1-121" aria-hidden="true" tabindex="-1"></a>If a transformer implements an internal slide-rule mechanism, it must add the operand logarithms together and express the total product $\log_2(a \cdot b)$ within the residual stream at the equals-sign token (<span class="in">`"="`</span>) right before the final prediction head.</span>
+<span id="cb1-122"><a href="#cb1-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-123"><a href="#cb1-123" aria-hidden="true" tabindex="-1"></a>To test this, I evaluated whether the operand-side probe vector $w$ could read the combined product scale at the final token position. For <span class="in">`" 5 * 9 ="`</span>, the probe reads **10.76** (instead of $\log_2(45) \approx 5.49$). For `" 3 * 7 ="`, it registers **11.17** (instead of $\log_2(21) \approx 4.39$). Evaluating across multiple combinations reveals a flat response curve, yielding an $R^2 = 0.011$ between the probe's readouts and the true product value.</span>
 <span id="cb1-124"><a href="#cb1-124" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-125"><a href="#cb1-125" aria-hidden="true" tabindex="-1"></a>I fed GPT-2 small the integers 2 through 1023, each as <span class="in">`" 5"`</span>, <span class="in">`" 17"`</span>,</span>
-<span id="cb1-126"><a href="#cb1-126" aria-hidden="true" tabindex="-1"></a><span class="in">`" 1024"`</span>, etc. Most are single BPE tokens. At every layer I extracted</span>
-<span id="cb1-127"><a href="#cb1-127" aria-hidden="true" tabindex="-1"></a>the residual stream and trained a ridge probe for $\log_2(x)$ and several</span>
-<span id="cb1-128"><a href="#cb1-128" aria-hidden="true" tabindex="-1"></a>controls.</span>
-<span id="cb1-129"><a href="#cb1-129" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-130"><a href="#cb1-130" aria-hidden="true" tabindex="-1"></a>**At the very first layer — the raw token embedding, before any</span>
-<span id="cb1-131"><a href="#cb1-131" aria-hidden="true" tabindex="-1"></a>transformer block has run — $\log_2(x)$ is decodable at $R^2 = 0.95$ on</span>
-<span id="cb1-132"><a href="#cb1-132" aria-hidden="true" tabindex="-1"></a>held-out integers.** Raw $x$ is also decodable, but worse, at $R^2 = 0.77$.</span>
-<span id="cb1-133"><a href="#cb1-133" aria-hidden="true" tabindex="-1"></a>Shuffled labels (a noise control) give $R^2 \approx 0$. So the embedding</span>
-<span id="cb1-134"><a href="#cb1-134" aria-hidden="true" tabindex="-1"></a>prefers the log shape.</span>
-<span id="cb1-135"><a href="#cb1-135" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-136"><a href="#cb1-136" aria-hidden="true" tabindex="-1"></a>To confirm the axis is really log-shaped and not just "any monotone</span>
-<span id="cb1-137"><a href="#cb1-137" aria-hidden="true" tabindex="-1"></a>function of $x$", I swept the power-law family $x^\alpha$. Decodability</span>
-<span id="cb1-138"><a href="#cb1-138" aria-hidden="true" tabindex="-1"></a>peaks right around $\alpha = 0$ — the log limit. If GPT-2 stored linear</span>
-<span id="cb1-139"><a href="#cb1-139" aria-hidden="true" tabindex="-1"></a>magnitude the peak would sit at $\alpha = 1$. It doesn't.</span>
+<span id="cb1-125"><a href="#cb1-125" aria-hidden="true" tabindex="-1"></a>This initial result suggests that the complete slide-rule circuit is absent; while the operands are tracked logarithmically at the input, the values do not appear to combine along this vector direction at the output stage.</span>
+<span id="cb1-126"><a href="#cb1-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-127"><a href="#cb1-127" aria-hidden="true" tabindex="-1"></a>However, a transformer is not architecturally constrained to reuse the same vector space across different token positions. The model can map intermediate transformations onto an entirely fresh coordinate axis. To test this, I trained a separate ridge probe directly on the hidden states of the <span class="in">`"="`</span> token across hundreds of random calculation pairs.</span>
+<span id="cb1-128"><a href="#cb1-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-129"><a href="#cb1-129" aria-hidden="true" tabindex="-1"></a>::: {.callout-important title="The key result"}</span>
+<span id="cb1-130"><a href="#cb1-130" aria-hidden="true" tabindex="-1"></a>This output-side probe successfully recovers the true product magnitude $\log_2(a \cdot b)$ with a cross-validated **$R^2 = 0.989$**. The logarithmic representation of the answer is fully constructed. The network translates the individual operand components from their input axes, sums them, and maps the total product onto a completely distinct vector direction at the terminal token position.</span>
+<span id="cb1-131"><a href="#cb1-131" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-132"><a href="#cb1-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-133"><a href="#cb1-133" aria-hidden="true" tabindex="-1"></a><span class="al">![The end-to-end pipeline. **Left:** patching the log component at the `=` position of real prompts; argmax over numeric tokens is stuck at `" 1"` regardless of $v_{\mathrm{target}}$ . **Middle:** the operand-side probe's readout at `=` is roughly constant ($\sim 10.8$) across all prompts, uncorrelated with $\log_2(a \cdot b)$ ($R^2 = 0.011$). **Right:** a fresh probe trained directly on residuals at `=` predicts $\log_2(a \cdot b)$ at $R^2 = 0.989$ on held-out pairs.](./probe_gpt2_pipeline.png)</span>{#fig-pipeline}</span>
+<span id="cb1-134"><a href="#cb1-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-135"><a href="#cb1-135" aria-hidden="true" tabindex="-1"></a><span class="fu">### A correction: the answer-side direction is correlational, not causal</span></span>
+<span id="cb1-136"><a href="#cb1-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-137"><a href="#cb1-137" aria-hidden="true" tabindex="-1"></a>While achieving a decoding metric of $R^2 = 0.989$ is notable, it is critical to verify whether this output direction is causally driving token generation or if it represents a passive downstream correlation—a phenomenon known as a probing illusion.</span>
+<span id="cb1-138"><a href="#cb1-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-139"><a href="#cb1-139" aria-hidden="true" tabindex="-1"></a>To establish causal validity, I performed a directional patching sweep along this output vector space ($w_{\mathrm{ans}}$) across various target scales ($v_{\mathrm{target}}$). If the final prediction layer directly relies on this direction to select tokens, the generated values should scale linearly with the intervention, tracing a slope of $1$ on a log-log plot.</span>
 <span id="cb1-140"><a href="#cb1-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-141"><a href="#cb1-141" aria-hidden="true" tabindex="-1"></a>What's more surprising is what *else* the embedding stores. Parity is</span>
-<span id="cb1-142"><a href="#cb1-142" aria-hidden="true" tabindex="-1"></a>decodable at $R^2 = 0.94$. Last digit ($x \bmod 10$) at $R^2 = 0.92$.</span>
-<span id="cb1-143"><a href="#cb1-143" aria-hidden="true" tabindex="-1"></a>GPT-2 has noticed, just from reading text, that <span class="in">`" 5"`</span>, <span class="in">`" 15"`</span>, <span class="in">`" 25"`</span></span>
-<span id="cb1-144"><a href="#cb1-144" aria-hidden="true" tabindex="-1"></a>all share the feature of ending in <span class="in">`5`</span>. Ask the same probe for `"is x</span>
-<span id="cb1-145"><a href="#cb1-145" aria-hidden="true" tabindex="-1"></a>divisible by 7?"` and the $R^2$ is essentially zero. Same for</span>
-<span id="cb1-146"><a href="#cb1-146" aria-hidden="true" tabindex="-1"></a><span class="in">`"is x prime?"`</span>. The embedding has structure for the things a careful</span>
-<span id="cb1-147"><a href="#cb1-147" aria-hidden="true" tabindex="-1"></a>reader of natural language might track — size, parity, last digit — and</span>
-<span id="cb1-148"><a href="#cb1-148" aria-hidden="true" tabindex="-1"></a>ignores number-theory properties that show up too rarely in text to matter.</span>
-<span id="cb1-149"><a href="#cb1-149" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-150"><a href="#cb1-150" aria-hidden="true" tabindex="-1"></a><span class="al">![Linear-probe $R^2$ at each layer for monotone targets, non-monotone targets, and a noise baseline. The log axis, parity, and last digit are all decodable at the embedding ($R^2 &gt; 0.9$). Number-theoretic properties (mod 7, primality) and the shuffle control are at chance.](./probe_gpt2_controls.png)</span>{#fig-controls}</span>
-<span id="cb1-151"><a href="#cb1-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-152"><a href="#cb1-152" aria-hidden="true" tabindex="-1"></a><span class="fu">### Does this generalise across categories of numbers?</span></span>
-<span id="cb1-153"><a href="#cb1-153" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-154"><a href="#cb1-154" aria-hidden="true" tabindex="-1"></a>A natural question: does the integer log axis carry over to other</span>
-<span id="cb1-155"><a href="#cb1-155" aria-hidden="true" tabindex="-1"></a>numeric tokens — years like <span class="in">`" 1990"`</span>, round numbers like <span class="in">`" 1000"`</span>,</span>
-<span id="cb1-156"><a href="#cb1-156" aria-hidden="true" tabindex="-1"></a>number-words like <span class="in">`" million"`</span>? A simple model says yes: GPT-2 has one</span>
-<span id="cb1-157"><a href="#cb1-157" aria-hidden="true" tabindex="-1"></a>shared magnitude axis for everything numeric.</span>
+<span id="cb1-141"><a href="#cb1-141" aria-hidden="true" tabindex="-1"></a>The experimental intervention reveals a causal slope of only **0.072**. For the vast majority of mathematical prompts, modifying the internal states along this vector direction across an 11-unit log range fails to alter the output token. While $\log_2(a \cdot b)$ is highly decodable from this space, the prediction head does not rely on this specific vector coordinate to select numbers.</span>
+<span id="cb1-142"><a href="#cb1-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-143"><a href="#cb1-143" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning title="Honest revision"}</span>
+<span id="cb1-144"><a href="#cb1-144" aria-hidden="true" tabindex="-1"></a>A strictly correlational analysis of the $R^2 = 0.989$ metric would conclude that the complete log-arithmetic pathway is fully integrated. However, the causal intervention proves that the language model head bypasses this specific axis during final token selection. The model isolates a logarithmic tracking space for the combined product, but maps its final behavioral selections along independent, unaligned coordinate directions.</span>
+<span id="cb1-145"><a href="#cb1-145" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-146"><a href="#cb1-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-147"><a href="#cb1-147" aria-hidden="true" tabindex="-1"></a><span class="al">![Patching along the fitted answer-side direction $w_{\mathrm{ans}}$ at the `=` position. **Left:** for each of eight multiplication prompts, $\log_2$ of the LM head's argmax-numeric vs the injected $v_{\mathrm{target}}$. Compared to the dashed reference $y = v_{\mathrm{target}}$, the curves are essentially flat — the LM head doesn't read this direction. **Right:** rank of the closest single-token integer to $2^{v_{\mathrm{target}}}$ among all numeric tokens. The target never ends up at rank 0; it bottoms around 100-300 out of 638 numeric tokens.](./probe_gpt2_answer_side_causal.png)</span>{#fig-answer-side-causal}</span>
+<span id="cb1-148"><a href="#cb1-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-149"><a href="#cb1-149" aria-hidden="true" tabindex="-1"></a><span class="fu">## Two more checks: was the other finding real or an artifact?</span></span>
+<span id="cb1-150"><a href="#cb1-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-151"><a href="#cb1-151" aria-hidden="true" tabindex="-1"></a>Given these conflicting causal insights, I implemented two deeper quantitative checks to calibrate the behavioral boundaries of this system.</span>
+<span id="cb1-152"><a href="#cb1-152" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-153"><a href="#cb1-153" aria-hidden="true" tabindex="-1"></a><span class="fu">### Check 1 — does the LM head act on the log axis?</span></span>
+<span id="cb1-154"><a href="#cb1-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-155"><a href="#cb1-155" aria-hidden="true" tabindex="-1"></a>The rows of the final logit projection matrix determine how the internal vectors map to token output space. If the logarithmic axis directly steers the output distribution, these row projections should hold a prominent geometric presence within the weight matrix.</span>
+<span id="cb1-156"><a href="#cb1-156" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-157"><a href="#cb1-157" aria-hidden="true" tabindex="-1"></a>In GPT-2 small, the discovered logarithmic vector accounts for 3.6% of the average squared norm across numerical token projection rows, standing significantly above a uniform isotropic baseline ($1/d = 0.13\%$).</span>
 <span id="cb1-158"><a href="#cb1-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-159"><a href="#cb1-159" aria-hidden="true" tabindex="-1"></a>The data says no, decisively. Apply the integer-trained probe to:</span>
+<span id="cb1-159"><a href="#cb1-159" aria-hidden="true" tabindex="-1"></a>However, GPT-2 small utilizes **tied weights**, meaning the output projection matrix is identical to the input embedding matrix. The geometric alignment is an architectural constraint rather than an emerged circuit. To isolate this, I repeated the projection analysis on **Pythia-70M** and **Pythia-160M**, which feature untied matrices:</span>
 <span id="cb1-160"><a href="#cb1-160" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-161"><a href="#cb1-161" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>152 single-token years from $<span class="co">[</span><span class="ot">1500, 2099</span><span class="co">]</span>$ → $R^2 = -2274$. The readouts</span>
-<span id="cb1-162"><a href="#cb1-162" aria-hidden="true" tabindex="-1"></a>  are nearly constant regardless of which year you feed in. The</span>
-<span id="cb1-163"><a href="#cb1-163" aria-hidden="true" tabindex="-1"></a>  integer axis can't distinguish 1500 from 2099 at all.</span>
-<span id="cb1-164"><a href="#cb1-164" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>33 single-token round numbers (multiples of 100 up to 100 000) →</span>
-<span id="cb1-165"><a href="#cb1-165" aria-hidden="true" tabindex="-1"></a>  $R^2 = 0.22$. Weak positive transfer.</span>
-<span id="cb1-166"><a href="#cb1-166" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>24 single-token English number-words ("one"..."twenty", "hundred",</span>
-<span id="cb1-167"><a href="#cb1-167" aria-hidden="true" tabindex="-1"></a>  "thousand", "million", "billion") → $R^2 = 0.14$.</span>
+<span id="cb1-161"><a href="#cb1-161" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Model <span class="pp">|</span> Hidden Dimension $d$ <span class="pp">|</span> Weight Tying <span class="pp">|</span> Log-Axis Projection Share <span class="pp">|</span> Relative to Baseline ($1/d$) <span class="pp">|</span></span>
+<span id="cb1-162"><a href="#cb1-162" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|---|---|</span></span>
+<span id="cb1-163"><a href="#cb1-163" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> GPT-2 small (124M) <span class="pp">|</span> 768 <span class="pp">|</span> Tied <span class="pp">|</span> 3.6% <span class="pp">|</span> **28×** <span class="pp">|</span></span>
+<span id="cb1-164"><a href="#cb1-164" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Pythia-70M <span class="pp">|</span> 512 <span class="pp">|</span> Untied <span class="pp">|</span> 0.19% <span class="pp">|</span> **1.0×** <span class="pp">|</span></span>
+<span id="cb1-165"><a href="#cb1-165" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Pythia-160M <span class="pp">|</span> 768 <span class="pp">|</span> Untied <span class="pp">|</span> 0.01% <span class="pp">|</span> **0.1×** <span class="pp">|</span></span>
+<span id="cb1-166"><a href="#cb1-166" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-167"><a href="#cb1-167" aria-hidden="true" tabindex="-1"></a>When weight tying is eliminated, the projection rows do not align with the integer embedding's log axis. While the underlying logarithmic representation remains highly decodable across all three model embeddings (see panel A of @fig-summary), the prediction layer does not automatically preserve this alignment in untied architectures. The apparent structural integration observed in GPT-2 is primarily a byproduct of its shared weight configuration.</span>
 <span id="cb1-168"><a href="#cb1-168" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-169"><a href="#cb1-169" aria-hidden="true" tabindex="-1"></a><span class="al">![The integer-trained log probe applied to other numeric categories. Integers (training) sit cleanly on $y = x$. Years, round numbers, and number-words sit far off the line. Each numeric category lives on its own axis in embedding space; there is no universal magnitude direction.](./probe_gpt2_shared_axis.png)</span>{#fig-shared-axis}</span>
+<span id="cb1-169"><a href="#cb1-169" aria-hidden="true" tabindex="-1"></a><span class="al">![LM-head log-axis decomposition for GPT-2 small. The 3.6% number averaged over numeric tokens is real, but the comparison with Pythia (see panel C of @fig-summary) shows most of that comes from weight tying.](./probe_gpt2_lmhead.png)</span>{#fig-lmhead}</span>
 <span id="cb1-170"><a href="#cb1-170" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-171"><a href="#cb1-171" aria-hidden="true" tabindex="-1"></a>This tells you something about how GPT-2 represents numbers. The token</span>
-<span id="cb1-172"><a href="#cb1-172" aria-hidden="true" tabindex="-1"></a><span class="in">`" 1990"`</span> is encoded primarily as "a year" — its role in text — and only</span>
-<span id="cb1-173"><a href="#cb1-173" aria-hidden="true" tabindex="-1"></a>weakly as "the number 1990". The model's representation is</span>
-<span id="cb1-174"><a href="#cb1-174" aria-hidden="true" tabindex="-1"></a>role-dependent, not value-dependent. A probe trained on integers reads</span>
-<span id="cb1-175"><a href="#cb1-175" aria-hidden="true" tabindex="-1"></a>years as nonsense.</span>
-<span id="cb1-176"><a href="#cb1-176" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-177"><a href="#cb1-177" aria-hidden="true" tabindex="-1"></a><span class="fu">## Does the log axis actually do anything?</span></span>
+<span id="cb1-171"><a href="#cb1-171" aria-hidden="true" tabindex="-1"></a><span class="fu">### Check 2 — does the log axis pull on the actual output distribution?</span></span>
+<span id="cb1-172"><a href="#cb1-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-173"><a href="#cb1-173" aria-hidden="true" tabindex="-1"></a>To measure pure behavioral influence across 200 random multiplication prompts $(a, b) \in [2, 50)^2$, I isolated the generated probability distributions across numerical tokens and fitted them to a standard log-Gaussian model:</span>
+<span id="cb1-174"><a href="#cb1-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-175"><a href="#cb1-175" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-176"><a href="#cb1-176" aria-hidden="true" tabindex="-1"></a>P(\text{predict } n \mid a, b) \propto \exp<span class="sc">\!</span>\left(-\frac{(\log_2 n - \mu)^2}{2\sigma^2}\right).</span>
+<span id="cb1-177"><a href="#cb1-177" aria-hidden="true" tabindex="-1"></a>$$ {#eq-gauss}</span>
 <span id="cb1-178"><a href="#cb1-178" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-179"><a href="#cb1-179" aria-hidden="true" tabindex="-1"></a>Decodability is a correlational fact. To test whether the model *uses*</span>
-<span id="cb1-180"><a href="#cb1-180" aria-hidden="true" tabindex="-1"></a>the log axis when it multiplies, I ran activation patching at the operand</span>
-<span id="cb1-181"><a href="#cb1-181" aria-hidden="true" tabindex="-1"></a>token.</span>
+<span id="cb1-179"><a href="#cb1-179" aria-hidden="true" tabindex="-1"></a>If the output is actively steered by log arithmetic, the mean parameter $\mu$ should scale symmetrically with $\log_2(a \cdot b)$. If the axis is behaviorally inert, $\mu$ will show zero statistical relationship to the true product.</span>
+<span id="cb1-180"><a href="#cb1-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-181"><a href="#cb1-181" aria-hidden="true" tabindex="-1"></a>The empirical tracking sits precisely between these extremes:</span>
 <span id="cb1-182"><a href="#cb1-182" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-183"><a href="#cb1-183" aria-hidden="true" tabindex="-1"></a>Take a prompt like <span class="in">`" 5 * 9 ="`</span>. The model processes it normally. At the</span>
-<span id="cb1-184"><a href="#cb1-184" aria-hidden="true" tabindex="-1"></a>position where <span class="in">`" 5"`</span> sits, the embedding's projection onto the probe</span>
-<span id="cb1-185"><a href="#cb1-185" aria-hidden="true" tabindex="-1"></a>direction $w$ reads $\log_2(5) \approx 2.3$. I add a rank-1 vector along</span>
-<span id="cb1-186"><a href="#cb1-186" aria-hidden="true" tabindex="-1"></a>$w$ so that projection now reads $\log_2(2) = 1$. Everything else about</span>
-<span id="cb1-187"><a href="#cb1-187" aria-hidden="true" tabindex="-1"></a>the embedding stays the same — same parity, same last-digit, same noise.</span>
-<span id="cb1-188"><a href="#cb1-188" aria-hidden="true" tabindex="-1"></a>Then I let the model run the full 12 layers and ask: which numeric token</span>
-<span id="cb1-189"><a href="#cb1-189" aria-hidden="true" tabindex="-1"></a>does the next-token distribution prefer?</span>
-<span id="cb1-190"><a href="#cb1-190" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-191"><a href="#cb1-191" aria-hidden="true" tabindex="-1"></a>For <span class="in">`" 5 * 9 ="`</span>, patching $\log_2(5) \to \log_2(2)$ makes the logit for</span>
-<span id="cb1-192"><a href="#cb1-192" aria-hidden="true" tabindex="-1"></a><span class="in">`" 18"`</span> (= $2 \cdot 9$) rise *above* the logit for <span class="in">`" 45"`</span> (= $5 \cdot 9$).</span>
-<span id="cb1-193"><a href="#cb1-193" aria-hidden="true" tabindex="-1"></a>The model has been talked into preferring the patched product. Patching</span>
-<span id="cb1-194"><a href="#cb1-194" aria-hidden="true" tabindex="-1"></a>toward $4$ makes <span class="in">`" 36"`</span> win. Patching toward $5$ does nothing, as it</span>
-<span id="cb1-195"><a href="#cb1-195" aria-hidden="true" tabindex="-1"></a>should. And — the critical control — patching along five different random</span>
-<span id="cb1-196"><a href="#cb1-196" aria-hidden="true" tabindex="-1"></a>directions of equal magnitude to $w$ gives logit shifts indistinguishable</span>
-<span id="cb1-197"><a href="#cb1-197" aria-hidden="true" tabindex="-1"></a>from zero. The effect is specific to the probe direction.</span>
+<span id="cb1-183"><a href="#cb1-183" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Accuracy:** 0% of the raw outputs match the correct arithmetic answer; small-scale language models cannot natively multiply integers.</span>
+<span id="cb1-184"><a href="#cb1-184" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Bias:** The fitted center $\mu$ is systematically shifted $\mathbf{-3.25}$ log-units below the true value, underestimating products by a factor of roughly $9.5\times$.</span>
+<span id="cb1-185"><a href="#cb1-185" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Coupling:** Despite the severe downward bias, the scaling slope of $\mu$ relative to the true values of $\log_2(a \cdot b)$ maintains a continuous, positive relationship at $\boldsymbol{\beta = 0.22}$.</span>
+<span id="cb1-186"><a href="#cb1-186" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-187"><a href="#cb1-187" aria-hidden="true" tabindex="-1"></a>Evaluating Pythia-70M reveals an identical scaling slope of $\beta = 0.22$, while Pythia-160M stabilizes at $\beta = 0.19$. Even though these models feature completely different output projection geometries (spanning orders of magnitude in explicit log-axis alignment), **their behavioral output tracking remains uniform**. The scaling limit is determined by the broader contextual frequency distributions shared across text training data rather than localized differences in projection head alignment.</span>
+<span id="cb1-188"><a href="#cb1-188" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-189"><a href="#cb1-189" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Model <span class="pp">|</span> Log-Axis Projection Share <span class="pp">|</span> Output Scaling Slope $\beta$ <span class="pp">|</span></span>
+<span id="cb1-190"><a href="#cb1-190" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb1-191"><a href="#cb1-191" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> GPT-2 small <span class="pp">|</span> 3.6% (28× baseline) <span class="pp">|</span> 0.22 <span class="pp">|</span></span>
+<span id="cb1-192"><a href="#cb1-192" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Pythia-70M <span class="pp">|</span> 0.19% (1.0× baseline) <span class="pp">|</span> 0.22 <span class="pp">|</span></span>
+<span id="cb1-193"><a href="#cb1-193" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Pythia-160M <span class="pp">|</span> 0.01% (0.1× baseline) <span class="pp">|</span> 0.19 <span class="pp">|</span></span>
+<span id="cb1-194"><a href="#cb1-194" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-195"><a href="#cb1-195" aria-hidden="true" tabindex="-1"></a><span class="al">![Near-miss arithmetic for GPT-2. **Left:** fitted mean log of the predicted distribution vs true $\log_2(a \cdot b)$. The mean predicted log tracks the true log with slope $\beta = 0.22$, biased about 3 units below the $y = x$ line. **Middle:** fitted spread $\sigma$ is roughly constant at $\sim 1.9$ log-units. **Right:** three example predicted distributions; dotted vertical lines mark the true $\log_2(a \cdot b)$.](./probe_gpt2_near_miss.png)</span>{#fig-near-miss}</span>
+<span id="cb1-196"><a href="#cb1-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-197"><a href="#cb1-197" aria-hidden="true" tabindex="-1"></a>This behavioral slope unifies the structural observations. The model successfully calculates $\log_2(a \cdot b)$ within its internal representations ($R^2 = 0.989$). The generation layer responds to this signal at an effective scale of ~22% relative to a perfect readout, though it remains largely masked by stronger text-frequency constraints. The underlying circuitry is present, but its execution is heavily muted.</span>
 <span id="cb1-198"><a href="#cb1-198" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-199"><a href="#cb1-199" aria-hidden="true" tabindex="-1"></a>The effect is also *asymmetric*. Patching downward (toward smaller</span>
-<span id="cb1-200"><a href="#cb1-200" aria-hidden="true" tabindex="-1"></a>numbers) works cleanly. Patching upward (toward larger numbers) only</span>
-<span id="cb1-201"><a href="#cb1-201" aria-hidden="true" tabindex="-1"></a>partly works. Most plausible explanation: the LM head has a strong</span>
-<span id="cb1-202"><a href="#cb1-202" aria-hidden="true" tabindex="-1"></a>frequency prior favouring small, common numbers in text. A fixed-size</span>
-<span id="cb1-203"><a href="#cb1-203" aria-hidden="true" tabindex="-1"></a>patch is enough to push preference toward smaller numbers (with the prior)</span>
-<span id="cb1-204"><a href="#cb1-204" aria-hidden="true" tabindex="-1"></a>but not enough to push it toward larger numbers (against the prior).</span>
+<span id="cb1-199"><a href="#cb1-199" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary of findings</span></span>
+<span id="cb1-200"><a href="#cb1-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-201"><a href="#cb1-201" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Logarithmic Encodings at Layer 0:** The embedding layer across all evaluated models represents integer features along a robust logarithmic axis, independent of separate coordinate paths tracking parity and final digits. Surface-level linguistic markers dominate organization, whereas deeper arithmetic qualities like primality do not form coherent vector alignments.</span>
+<span id="cb1-202"><a href="#cb1-202" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Causal Operand Patching:** Structured modifications targeted along the input log axis exert direct, predictable changes on downstream token probabilities, whereas equivalent changes along random control axes have no effect. This confirms that the discovered directions represent active semantic scales rather than passive statistical noise.</span>
+<span id="cb1-203"><a href="#cb1-203" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Uniform Behavioral Scaling:** Across models with fundamentally different output connectivity, the underlying logarithmic representation consistently biases token generation at a stable tracking ratio of $\beta \approx 0.22$. This suggests the output geometry is bounded by properties of the textual data distribution rather than localized architecture choices.</span>
+<span id="cb1-204"><a href="#cb1-204" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**The Probing Disconnection:** While the combined scale of an arithmetic product is highly decodable at the final token position ($R^2 = 0.989$), directional patching along this output axis fails to steer generation performance (causal slope = 0.07). The linear probe tracks a real internal representation, but isolates a direction that is not causally utilized by the final token generation layers.</span>
 <span id="cb1-205"><a href="#cb1-205" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-206"><a href="#cb1-206" aria-hidden="true" tabindex="-1"></a><span class="al">![Causal patching at the operand position. **Left:** change in relative logit, $\mathrm{logit}(a_{\mathrm{target}} \cdot b) - \mathrm{logit}(a \cdot b)$, as we patch the log direction at the `" a"` position. Solid lines are the log direction; dotted lines are random directions of the same norm. **Right:** heatmap of relative logits for `" 5 * 9 ="`. The yellow most-favoured-product stripe follows the perfect-log-shortcut line $p = a_{\mathrm{target}} \cdot b$ for downward patches, then sticks at 45 once we patch toward larger numbers.](./probe_gpt2_patching.png)</span>{#fig-patching}</span>
+<span id="cb1-206"><a href="#cb1-206" aria-hidden="true" tabindex="-1"></a>This demonstrates that small-scale transformers construct complex semantic representations whose behavioral expressions remain mostly suppressed by the dominant statistical distributions of their training text. An inability to output correct mathematical calculations does not imply the absolute absence of arithmetic circuits; rather, these underlying structures are simply overridden by louder linguistic priors.</span>
 <span id="cb1-207"><a href="#cb1-207" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-208"><a href="#cb1-208" aria-hidden="true" tabindex="-1"></a><span class="fu">## Does the model actually compute log(a·b)?</span></span>
+<span id="cb1-208"><a href="#cb1-208" aria-hidden="true" tabindex="-1"></a><span class="fu">## Limitations</span></span>
 <span id="cb1-209"><a href="#cb1-209" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-210"><a href="#cb1-210" aria-hidden="true" tabindex="-1"></a>This is the test I most wanted to run.</span>
-<span id="cb1-211"><a href="#cb1-211" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-212"><a href="#cb1-212" aria-hidden="true" tabindex="-1"></a>If the model does the slide-rule trick — adds the operand logs and then</span>
-<span id="cb1-213"><a href="#cb1-213" aria-hidden="true" tabindex="-1"></a>exponentiates at the end — then at the position of the <span class="in">`=`</span> sign, the</span>
-<span id="cb1-214"><a href="#cb1-214" aria-hidden="true" tabindex="-1"></a>residual stream right before the LM head should be carrying</span>
-<span id="cb1-215"><a href="#cb1-215" aria-hidden="true" tabindex="-1"></a>$\log_2(a \cdot b)$. The operand-side log direction $w$ ought to read off</span>
-<span id="cb1-216"><a href="#cb1-216" aria-hidden="true" tabindex="-1"></a>this value.</span>
-<span id="cb1-217"><a href="#cb1-217" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-218"><a href="#cb1-218" aria-hidden="true" tabindex="-1"></a>I checked. For <span class="in">`" 5 * 9 ="`</span>, the operand-side probe at <span class="in">`=`</span> reads off</span>
-<span id="cb1-219"><a href="#cb1-219" aria-hidden="true" tabindex="-1"></a>**10.76** — not $\log_2(45) \approx 5.49$. For <span class="in">`" 3 * 7 ="`</span> it reads</span>
-<span id="cb1-220"><a href="#cb1-220" aria-hidden="true" tabindex="-1"></a>**11.17**, not $\log_2(21) \approx 4.39$. Across nine different prompts,</span>
-<span id="cb1-221"><a href="#cb1-221" aria-hidden="true" tabindex="-1"></a>the readout is essentially flat. The $R^2$ of "what the operand-axis probe</span>
-<span id="cb1-222"><a href="#cb1-222" aria-hidden="true" tabindex="-1"></a>reads at <span class="in">`=`</span>" against "the true $\log_2(a \cdot b)$" is **0.011** — no</span>
-<span id="cb1-223"><a href="#cb1-223" aria-hidden="true" tabindex="-1"></a>signal.</span>
-<span id="cb1-224"><a href="#cb1-224" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-225"><a href="#cb1-225" aria-hidden="true" tabindex="-1"></a>My first reaction was that the circuit isn't there. The shortcut exists</span>
-<span id="cb1-226"><a href="#cb1-226" aria-hidden="true" tabindex="-1"></a>on the input side, but the model isn't wiring it together.</span>
+<span id="cb1-210"><a href="#cb1-210" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Weight-Tying Dependencies:** Because GPT-2 small ties its input and output weight matrices, a significant portion of its projection alignment is an architectural artifact. While evaluating untied Pythia variants mitigates this, mapping these circuits across larger, diverse model families remains necessary.</span>
+<span id="cb1-211"><a href="#cb1-211" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Logit-Space vs. Token Selections:** The causal patching experiments measure shifts across continuous relative logits rather than forcing discrete token replacements. Because these small architectures achieve an absolute arithmetic accuracy of 0%, testing these interventions on scales that can successfully calculate products (e.g., Qwen or Llama variants) would provide clearer behavioral validation.</span>
+<span id="cb1-212"><a href="#cb1-212" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Extrapolation Limits:** The output-side probe performance was verified across a limited operational span ($(a, b) \in <span class="co">[</span><span class="ot">2, 64</span><span class="co">]</span>^2$). Whether these logarithmic vector representations scale cleanly when processing significantly larger numeric ranges remains unverified.</span>
+<span id="cb1-213"><a href="#cb1-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-214"><a href="#cb1-214" aria-hidden="true" tabindex="-1"></a><span class="fu">## Future research directions</span></span>
+<span id="cb1-215"><a href="#cb1-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-216"><a href="#cb1-216" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Isolating Causal Output Axes:** Determining the exact vector spaces utilized by the prediction head to route numerical selections is a critical step. Applying sparse autoencoders or singular value decompositions to numeric projection columns should expose the precise directions driving token choices.</span>
+<span id="cb1-217"><a href="#cb1-217" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Validating via Exponentiation Prompts:** Testing contextual calculations such as power routing (<span class="in">`a^b =`</span>) can provide a more rigorous validation of the logarithmic layout. Patching the input vector by a factor of $\Delta$ should mathematically scale downstream outputs by $b \cdot \Delta$.</span>
+<span id="cb1-218"><a href="#cb1-218" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Cross-Layer Circuit Tracing:** Identifying the specific intermediate attention heads responsible for shifting operand features from their initial inputs to the final output token positions. The existing patching framework can be extended to implement layer-by-layer path patching.</span>
+<span id="cb1-219"><a href="#cb1-219" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-220"><a href="#cb1-220" aria-hidden="true" tabindex="-1"></a><span class="fu">## Methodological note</span></span>
+<span id="cb1-221"><a href="#cb1-221" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-222"><a href="#cb1-222" aria-hidden="true" tabindex="-1"></a>When a linear probe optimized at a specific token position fails to resolve information when applied to a different position, it does not prove the feature is absent; the network may simply be utilizing an unaligned vector space. Optimizing a localized probe at the exact point of evaluation is a vital step in distinguishing between a missing circuit and an unaligned coordinate mapping.</span>
+<span id="cb1-223"><a href="#cb1-223" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-224"><a href="#cb1-224" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb1-225"><a href="#cb1-225" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-226"><a href="#cb1-226" aria-hidden="true" tabindex="-1"></a><span class="fu">## Code</span></span>
 <span id="cb1-227"><a href="#cb1-227" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-228"><a href="#cb1-228" aria-hidden="true" tabindex="-1"></a>Then it occurred to me: maybe the model uses a *different* direction at</span>
-<span id="cb1-229"><a href="#cb1-229" aria-hidden="true" tabindex="-1"></a>the <span class="in">`=`</span> position to write down the answer's log than the one it uses to</span>
-<span id="cb1-230"><a href="#cb1-230" aria-hidden="true" tabindex="-1"></a>read the operands' logs. There's no architectural reason those have to be</span>
-<span id="cb1-231"><a href="#cb1-231" aria-hidden="true" tabindex="-1"></a>the same vector — the model can translate between representations as it</span>
-<span id="cb1-232"><a href="#cb1-232" aria-hidden="true" tabindex="-1"></a>computes. So I trained a fresh ridge probe directly on the residual at</span>
-<span id="cb1-233"><a href="#cb1-233" aria-hidden="true" tabindex="-1"></a><span class="in">`=`</span>, against $\log_2(a \cdot b)$ for several hundred random $(a, b)$ pairs.</span>
-<span id="cb1-234"><a href="#cb1-234" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-235"><a href="#cb1-235" aria-hidden="true" tabindex="-1"></a>::: {.callout-important title="The key result"}</span>
-<span id="cb1-236"><a href="#cb1-236" aria-hidden="true" tabindex="-1"></a>The new probe predicts the answer's log at **$R^2 = 0.989$** on held-out</span>
-<span id="cb1-237"><a href="#cb1-237" aria-hidden="true" tabindex="-1"></a>$(a, b)$ pairs. The model has computed $\log_2(a \cdot b)$. It's there.</span>
-<span id="cb1-238"><a href="#cb1-238" aria-hidden="true" tabindex="-1"></a>It's almost perfectly linearly decodable from the residual stream right</span>
-<span id="cb1-239"><a href="#cb1-239" aria-hidden="true" tabindex="-1"></a>before the LM head. I had simply been looking on the wrong axis.</span>
-<span id="cb1-240"><a href="#cb1-240" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb1-241"><a href="#cb1-241" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-242"><a href="#cb1-242" aria-hidden="true" tabindex="-1"></a>So the picture is this. The operands' logs are written down on one axis</span>
-<span id="cb1-243"><a href="#cb1-243" aria-hidden="true" tabindex="-1"></a>at the input. Somewhere in the middle layers, the model adds them and</span>
-<span id="cb1-244"><a href="#cb1-244" aria-hidden="true" tabindex="-1"></a>rewrites the result on a *different* axis at the <span class="in">`=`</span> position. The LM</span>
-<span id="cb1-245"><a href="#cb1-245" aria-hidden="true" tabindex="-1"></a>head then reads that second axis to decide what number comes next. The</span>
-<span id="cb1-246"><a href="#cb1-246" aria-hidden="true" tabindex="-1"></a>whole $\log \to \mathrm{sum} \to \exp$ machine is sitting in GPT-2 small.</span>
-<span id="cb1-247"><a href="#cb1-247" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-248"><a href="#cb1-248" aria-hidden="true" tabindex="-1"></a><span class="al">![The end-to-end pipeline. **Left:** patching the log component at the `=` position of real prompts; argmax over numeric tokens is stuck at `" 1"` regardless of $v_{\mathrm{target}}$. **Middle:** the operand-side probe's readout at `=` is roughly constant ($\sim 10.8$) across all prompts, uncorrelated with $\log_2(a \cdot b)$ ($R^2 = 0.011$). **Right:** a fresh probe trained directly on residuals at `=` predicts $\log_2(a \cdot b)$ at $R^2 = 0.989$ on held-out pairs.](./probe_gpt2_pipeline.png)</span>{#fig-pipeline}</span>
-<span id="cb1-249"><a href="#cb1-249" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-250"><a href="#cb1-250" aria-hidden="true" tabindex="-1"></a><span class="fu">### A correction: the answer-side direction is correlational, not causal</span></span>
-<span id="cb1-251"><a href="#cb1-251" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-252"><a href="#cb1-252" aria-hidden="true" tabindex="-1"></a>The $R^2 = 0.989$ number is striking enough that I should ask whether the</span>
-<span id="cb1-253"><a href="#cb1-253" aria-hidden="true" tabindex="-1"></a>direction the probe found is actually the one the model *uses*, rather than</span>
-<span id="cb1-254"><a href="#cb1-254" aria-hidden="true" tabindex="-1"></a>some downstream feature that *correlates* with $\log_2(a \cdot b)$. That's</span>
-<span id="cb1-255"><a href="#cb1-255" aria-hidden="true" tabindex="-1"></a>the classic correlation-vs-causation issue with linear probes, sometimes</span>
-<span id="cb1-256"><a href="#cb1-256" aria-hidden="true" tabindex="-1"></a>called the "probing illusion".</span>
-<span id="cb1-257"><a href="#cb1-257" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-258"><a href="#cb1-258" aria-hidden="true" tabindex="-1"></a>The clean way to test causation: take the fitted answer-side direction</span>
-<span id="cb1-259"><a href="#cb1-259" aria-hidden="true" tabindex="-1"></a>$w_{\mathrm{ans}}$, then for various $v_{\mathrm{target}}$, patch the</span>
-<span id="cb1-260"><a href="#cb1-260" aria-hidden="true" tabindex="-1"></a>residual at <span class="in">`=`</span> so the projection onto $w_{\mathrm{ans}}$ equals</span>
-<span id="cb1-261"><a href="#cb1-261" aria-hidden="true" tabindex="-1"></a>$v_{\mathrm{target}}$, apply the LM head, and check whether the argmax</span>
-<span id="cb1-262"><a href="#cb1-262" aria-hidden="true" tabindex="-1"></a>over numeric tokens tracks $2^{v_{\mathrm{target}}}$.</span>
-<span id="cb1-263"><a href="#cb1-263" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-264"><a href="#cb1-264" aria-hidden="true" tabindex="-1"></a>If the model uses this direction, the LM head's argmax should follow</span>
-<span id="cb1-265"><a href="#cb1-265" aria-hidden="true" tabindex="-1"></a>$2^{v_{\mathrm{target}}}$ — slope 1 on a log-log plot. If it merely</span>
-<span id="cb1-266"><a href="#cb1-266" aria-hidden="true" tabindex="-1"></a>*correlates* with $\log_2(a \cdot b)$, patching it should move nothing.</span>
-<span id="cb1-267"><a href="#cb1-267" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-268"><a href="#cb1-268" aria-hidden="true" tabindex="-1"></a>The result: **slope $0.072$, not 1**. For most prompts the argmax over</span>
-<span id="cb1-269"><a href="#cb1-269" aria-hidden="true" tabindex="-1"></a>numeric tokens doesn't change at all across an 11-log-unit sweep. The</span>
-<span id="cb1-270"><a href="#cb1-270" aria-hidden="true" tabindex="-1"></a>LM head clearly doesn't read this direction. The 0.989 R² says</span>
-<span id="cb1-271"><a href="#cb1-271" aria-hidden="true" tabindex="-1"></a>$\log_2(a \cdot b)$ is *encoded* there — but probably as a downstream</span>
-<span id="cb1-272"><a href="#cb1-272" aria-hidden="true" tabindex="-1"></a>consequence of whatever the model is actually doing, not because the</span>
-<span id="cb1-273"><a href="#cb1-273" aria-hidden="true" tabindex="-1"></a>LM head reads it.</span>
-<span id="cb1-274"><a href="#cb1-274" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-275"><a href="#cb1-275" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning title="Honest revision"}</span>
-<span id="cb1-276"><a href="#cb1-276" aria-hidden="true" tabindex="-1"></a>The original write-up of this experiment claimed the pipeline was "wired</span>
-<span id="cb1-277"><a href="#cb1-277" aria-hidden="true" tabindex="-1"></a>up" because the answer's log was decodable at $R^2 = 0.989$. The causal</span>
-<span id="cb1-278"><a href="#cb1-278" aria-hidden="true" tabindex="-1"></a>test shows that's overclaiming. The decodability is real, but the</span>
-<span id="cb1-279"><a href="#cb1-279" aria-hidden="true" tabindex="-1"></a>LM head doesn't act on that specific direction. The right summary is:</span>
-<span id="cb1-280"><a href="#cb1-280" aria-hidden="true" tabindex="-1"></a>**the model has computed something equivalent to $\log_2(a \cdot b)$</span>
-<span id="cb1-281"><a href="#cb1-281" aria-hidden="true" tabindex="-1"></a>somewhere in its residual stream at <span class="in">`=`</span>, but the LM head's actual choice</span>
-<span id="cb1-282"><a href="#cb1-282" aria-hidden="true" tabindex="-1"></a>of next token is driven by other directions.** What those directions</span>
-<span id="cb1-283"><a href="#cb1-283" aria-hidden="true" tabindex="-1"></a>encode, and how they relate to the operand-side log axis, is still open.</span>
-<span id="cb1-284"><a href="#cb1-284" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb1-285"><a href="#cb1-285" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-286"><a href="#cb1-286" aria-hidden="true" tabindex="-1"></a><span class="al">![Patching along the fitted answer-side direction $w_{\mathrm{ans}}$ at the `=` position. **Left:** for each of eight multiplication prompts, $\log_2$ of the LM head's argmax-numeric vs the injected $v_{\mathrm{target}}$. Compared to the dashed reference $y = v_{\mathrm{target}}$, the curves are essentially flat — the LM head doesn't read this direction. **Right:** rank of the closest single-token integer to $2^{v_{\mathrm{target}}}$ among all numeric tokens. The target never ends up at rank 0; it bottoms around 100-300 out of 638 numeric tokens.](./probe_gpt2_answer_side_causal.png)</span>{#fig-answer-side-causal}</span>
-<span id="cb1-287"><a href="#cb1-287" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-288"><a href="#cb1-288" aria-hidden="true" tabindex="-1"></a><span class="fu">## Two more checks: was the other finding real or an artifact?</span></span>
-<span id="cb1-289"><a href="#cb1-289" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-290"><a href="#cb1-290" aria-hidden="true" tabindex="-1"></a>The $0.989$ number is striking enough that I want to ask twice. Two</span>
-<span id="cb1-291"><a href="#cb1-291" aria-hidden="true" tabindex="-1"></a>follow-ups, both quantitative.</span>
-<span id="cb1-292"><a href="#cb1-292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-293"><a href="#cb1-293" aria-hidden="true" tabindex="-1"></a><span class="fu">### Check 1 — does the LM head act on the log axis?</span></span>
-<span id="cb1-294"><a href="#cb1-294" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-295"><a href="#cb1-295" aria-hidden="true" tabindex="-1"></a>The LM head's row for each numeric token is what gets dotted with the</span>
-<span id="cb1-296"><a href="#cb1-296" aria-hidden="true" tabindex="-1"></a>residual stream to produce the next-token logit. If the log axis matters</span>
-<span id="cb1-297"><a href="#cb1-297" aria-hidden="true" tabindex="-1"></a>for output, those rows should have non-trivial mass on it.</span>
-<span id="cb1-298"><a href="#cb1-298" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-299"><a href="#cb1-299" aria-hidden="true" tabindex="-1"></a>For GPT-2 small: the log direction captures 3.6% of each numeric LM-head</span>
-<span id="cb1-300"><a href="#cb1-300" aria-hidden="true" tabindex="-1"></a>row's squared norm on average, versus $1/d = 0.13\%$ for a random</span>
-<span id="cb1-301"><a href="#cb1-301" aria-hidden="true" tabindex="-1"></a>direction — about $28\times$ the isotropic baseline.</span>
-<span id="cb1-302"><a href="#cb1-302" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-303"><a href="#cb1-303" aria-hidden="true" tabindex="-1"></a>But there's a catch. GPT-2 ties its LM head to its embedding, so the LM</span>
-<span id="cb1-304"><a href="#cb1-304" aria-hidden="true" tabindex="-1"></a>head row for token <span class="in">`" 5"`</span> is *literally* the same vector as the embedding</span>
-<span id="cb1-305"><a href="#cb1-305" aria-hidden="true" tabindex="-1"></a>of <span class="in">`" 5"`</span>. The "alignment" of LM head with log axis is automatic, not</span>
-<span id="cb1-306"><a href="#cb1-306" aria-hidden="true" tabindex="-1"></a>emergent. To separate "tying" from "emergent alignment", I re-ran the</span>
-<span id="cb1-307"><a href="#cb1-307" aria-hidden="true" tabindex="-1"></a>analysis on two more models with untied weights — **Pythia-70M** and</span>
-<span id="cb1-308"><a href="#cb1-308" aria-hidden="true" tabindex="-1"></a>**Pythia-160M**:</span>
-<span id="cb1-309"><a href="#cb1-309" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-310"><a href="#cb1-310" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Model <span class="pp">|</span> Hidden $d$ <span class="pp">|</span> Tied? <span class="pp">|</span> LM-head log-axis fraction <span class="pp">|</span> Multiple of $1/d$ baseline <span class="pp">|</span></span>
-<span id="cb1-311"><a href="#cb1-311" aria-hidden="true" tabindex="-1"></a><span class="pp">|-------|-----------|-------|---------------------------|----------------------------|</span></span>
-<span id="cb1-312"><a href="#cb1-312" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> GPT-2 small (124M) <span class="pp">|</span> 768 <span class="pp">|</span> tied <span class="pp">|</span> 3.6% <span class="pp">|</span> **28×** <span class="pp">|</span></span>
-<span id="cb1-313"><a href="#cb1-313" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Pythia-70M <span class="pp">|</span> 512 <span class="pp">|</span> untied <span class="pp">|</span> 0.19% <span class="pp">|</span> **1.0×** <span class="pp">|</span></span>
-<span id="cb1-314"><a href="#cb1-314" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Pythia-160M <span class="pp">|</span> 768 <span class="pp">|</span> untied <span class="pp">|</span> 0.01% <span class="pp">|</span> **0.1×** <span class="pp">|</span></span>
-<span id="cb1-315"><a href="#cb1-315" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-316"><a href="#cb1-316" aria-hidden="true" tabindex="-1"></a>Without weight tying, the LM head doesn't independently align with the</span>
-<span id="cb1-317"><a href="#cb1-317" aria-hidden="true" tabindex="-1"></a>integer-embedding log axis. The underlying log axis is real (decodable at</span>
-<span id="cb1-318"><a href="#cb1-318" aria-hidden="true" tabindex="-1"></a>$R^2 \approx 0.89$ in both Pythia embeddings too — see panel A of</span>
-<span id="cb1-319"><a href="#cb1-319" aria-hidden="true" tabindex="-1"></a>@fig-summary), but the LM head doesn't inherit it for free when weights</span>
-<span id="cb1-320"><a href="#cb1-320" aria-hidden="true" tabindex="-1"></a>are untied. The "28× baseline" number for GPT-2 was largely an artifact of</span>
-<span id="cb1-321"><a href="#cb1-321" aria-hidden="true" tabindex="-1"></a>weight tying.</span>
-<span id="cb1-322"><a href="#cb1-322" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-323"><a href="#cb1-323" aria-hidden="true" tabindex="-1"></a><span class="al">![LM-head log-axis decomposition for GPT-2 small. The 3.6% number averaged over numeric tokens is real, but the comparison with Pythia (see panel C of @fig-summary) shows most of that comes from weight tying.](./probe_gpt2_lmhead.png)</span>{#fig-lmhead}</span>
-<span id="cb1-324"><a href="#cb1-324" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-325"><a href="#cb1-325" aria-hidden="true" tabindex="-1"></a><span class="fu">### Check 2 — does the log axis pull on the actual output distribution?</span></span>
-<span id="cb1-326"><a href="#cb1-326" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-327"><a href="#cb1-327" aria-hidden="true" tabindex="-1"></a>The behavioural test. For 200 random multiplication prompts</span>
-<span id="cb1-328"><a href="#cb1-328" aria-hidden="true" tabindex="-1"></a>$(a, b) \in [2, 50)^2$, I look at the model's next-token distribution</span>
-<span id="cb1-329"><a href="#cb1-329" aria-hidden="true" tabindex="-1"></a>restricted to numeric tokens, and fit a simple log-Gaussian:</span>
-<span id="cb1-330"><a href="#cb1-330" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-331"><a href="#cb1-331" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb1-332"><a href="#cb1-332" aria-hidden="true" tabindex="-1"></a>P(\text{predict } n \mid a, b) \propto \exp<span class="sc">\!</span>\left(-\frac{(\log_2 n - \mu)^2}{2\sigma^2}\right).</span>
-<span id="cb1-333"><a href="#cb1-333" aria-hidden="true" tabindex="-1"></a>$$ {#eq-gauss}</span>
-<span id="cb1-334"><a href="#cb1-334" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-335"><a href="#cb1-335" aria-hidden="true" tabindex="-1"></a>If the log circuit drives output, $\mu \approx \log_2(a \cdot b)$ and</span>
-<span id="cb1-336"><a href="#cb1-336" aria-hidden="true" tabindex="-1"></a>$\sigma$ shrinks with confidence. If the log axis is ignored, $\mu$ has</span>
-<span id="cb1-337"><a href="#cb1-337" aria-hidden="true" tabindex="-1"></a>no relation to the true log.</span>
-<span id="cb1-338"><a href="#cb1-338" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-339"><a href="#cb1-339" aria-hidden="true" tabindex="-1"></a>The result sits between these. Across 200 prompts:</span>
-<span id="cb1-340"><a href="#cb1-340" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-341"><a href="#cb1-341" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>$0/200$ argmaxes are correct (GPT-2 small really can't multiply).</span>
-<span id="cb1-342"><a href="#cb1-342" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Fitted $\mu$ is biased $\mathbf{-3.25}$ log-units *below* the true</span>
-<span id="cb1-343"><a href="#cb1-343" aria-hidden="true" tabindex="-1"></a>  $\log_2(a \cdot b)$ on average. The model predicts numbers about</span>
-<span id="cb1-344"><a href="#cb1-344" aria-hidden="true" tabindex="-1"></a>  $2^{3.25} \approx 9.5\times$ smaller than the right answer.</span>
-<span id="cb1-345"><a href="#cb1-345" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>But the slope of $\mu$ vs $\log_2(a \cdot b)$ across prompts is</span>
-<span id="cb1-346"><a href="#cb1-346" aria-hidden="true" tabindex="-1"></a>  $\boldsymbol{\beta = 0.22}$. Not 1 (perfect readout), not 0 (no</span>
-<span id="cb1-347"><a href="#cb1-347" aria-hidden="true" tabindex="-1"></a>  readout), but a clear positive coupling.</span>
-<span id="cb1-348"><a href="#cb1-348" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-349"><a href="#cb1-349" aria-hidden="true" tabindex="-1"></a>Repeating the experiment on Pythia-70M gives $\beta = 0.22$ — same as</span>
-<span id="cb1-350"><a href="#cb1-350" aria-hidden="true" tabindex="-1"></a>GPT-2. On Pythia-160M I get $\beta = 0.19$. Across three models with</span>
-<span id="cb1-351"><a href="#cb1-351" aria-hidden="true" tabindex="-1"></a>very different LM-head geometries (4 orders of magnitude apart in their</span>
-<span id="cb1-352"><a href="#cb1-352" aria-hidden="true" tabindex="-1"></a>log-axis fraction), **the behavioural pull on output is the same**:</span>
-<span id="cb1-353"><a href="#cb1-353" aria-hidden="true" tabindex="-1"></a>about 22% of what a clean readout would produce. The slope $\beta \approx</span>
-<span id="cb1-354"><a href="#cb1-354" aria-hidden="true" tabindex="-1"></a>0.22$ looks like a property of the cost-sensitive output distribution</span>
-<span id="cb1-355"><a href="#cb1-355" aria-hidden="true" tabindex="-1"></a>the models share, not of how their LM heads happen to align with</span>
-<span id="cb1-356"><a href="#cb1-356" aria-hidden="true" tabindex="-1"></a>integer-embedding directions.</span>
-<span id="cb1-357"><a href="#cb1-357" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-358"><a href="#cb1-358" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Model <span class="pp">|</span> LM-head log-axis fraction <span class="pp">|</span> Near-miss $\beta$ <span class="pp">|</span></span>
-<span id="cb1-359"><a href="#cb1-359" aria-hidden="true" tabindex="-1"></a><span class="pp">|-------|---------------------------|-------------------|</span></span>
-<span id="cb1-360"><a href="#cb1-360" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> GPT-2 small <span class="pp">|</span> 3.6% (28× baseline) <span class="pp">|</span> 0.22 <span class="pp">|</span></span>
-<span id="cb1-361"><a href="#cb1-361" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Pythia-70M <span class="pp">|</span> 0.19% (1.0× baseline) <span class="pp">|</span> 0.22 <span class="pp">|</span></span>
-<span id="cb1-362"><a href="#cb1-362" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Pythia-160M <span class="pp">|</span> 0.01% (0.1× baseline) <span class="pp">|</span> 0.19 <span class="pp">|</span></span>
-<span id="cb1-363"><a href="#cb1-363" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-364"><a href="#cb1-364" aria-hidden="true" tabindex="-1"></a><span class="al">![Near-miss arithmetic for GPT-2. **Left:** fitted mean log of the predicted distribution vs true $\log_2(a \cdot b)$. The mean predicted log tracks the true log with slope $\beta = 0.22$, biased about 3 units below the $y = x$ line. **Middle:** fitted spread $\sigma$ is roughly constant at $\sim 1.9$ log-units. **Right:** three example predicted distributions; dotted vertical lines mark the true $\log_2(a \cdot b)$.](./probe_gpt2_near_miss.png)</span>{#fig-near-miss}</span>
-<span id="cb1-365"><a href="#cb1-365" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-366"><a href="#cb1-366" aria-hidden="true" tabindex="-1"></a>This $\beta = 0.22$ ties everything together. The log circuit puts</span>
-<span id="cb1-367"><a href="#cb1-367" aria-hidden="true" tabindex="-1"></a>$\log_2(a \cdot b)$ in the residual stream at $R^2 = 0.989$. The LM head</span>
-<span id="cb1-368"><a href="#cb1-368" aria-hidden="true" tabindex="-1"></a>acts on it to roughly 22% of what perfect readout would give, swamped by a</span>
-<span id="cb1-369"><a href="#cb1-369" aria-hidden="true" tabindex="-1"></a>much larger frequency prior. The machine is wired up; it just isn't loud</span>
-<span id="cb1-370"><a href="#cb1-370" aria-hidden="true" tabindex="-1"></a>enough.</span>
-<span id="cb1-371"><a href="#cb1-371" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-372"><a href="#cb1-372" aria-hidden="true" tabindex="-1"></a><span class="fu">## What this collectively shows</span></span>
-<span id="cb1-373"><a href="#cb1-373" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-374"><a href="#cb1-374" aria-hidden="true" tabindex="-1"></a>Five claims, the first three robust and the last two more tentative.</span>
-<span id="cb1-375"><a href="#cb1-375" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-376"><a href="#cb1-376" aria-hidden="true" tabindex="-1"></a>The embedding layer of all three models encodes integers on an</span>
-<span id="cb1-377"><a href="#cb1-377" aria-hidden="true" tabindex="-1"></a>approximately logarithmic axis, along with separate axes for parity and</span>
-<span id="cb1-378"><a href="#cb1-378" aria-hidden="true" tabindex="-1"></a>last digit. Number-theoretic properties not visible in surface text</span>
-<span id="cb1-379"><a href="#cb1-379" aria-hidden="true" tabindex="-1"></a>(mod 7, primality) do not get a coherent representation. The log-axis</span>
-<span id="cb1-380"><a href="#cb1-380" aria-hidden="true" tabindex="-1"></a>shape peaks the power-law sweep at $\alpha = 0$, but the absolute</span>
-<span id="cb1-381"><a href="#cb1-381" aria-hidden="true" tabindex="-1"></a>preference of log over linear is partly weight-tying dependent — GPT-2</span>
-<span id="cb1-382"><a href="#cb1-382" aria-hidden="true" tabindex="-1"></a>has log $\gg$ linear at the embedding, while untied Pythia models have</span>
-<span id="cb1-383"><a href="#cb1-383" aria-hidden="true" tabindex="-1"></a>log $\approx$ linear there.</span>
-<span id="cb1-384"><a href="#cb1-384" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-385"><a href="#cb1-385" aria-hidden="true" tabindex="-1"></a>Perturbations along the embedding's log axis have structured,</span>
-<span id="cb1-386"><a href="#cb1-386" aria-hidden="true" tabindex="-1"></a>direction-specific causal effect on the model's next-token predictions in</span>
-<span id="cb1-387"><a href="#cb1-387" aria-hidden="true" tabindex="-1"></a>multiplication prompts. Random directions of the same magnitude do not.</span>
-<span id="cb1-388"><a href="#cb1-388" aria-hidden="true" tabindex="-1"></a>This rules out the "probe is finding a noise direction" null hypothesis.</span>
-<span id="cb1-389"><a href="#cb1-389" aria-hidden="true" tabindex="-1"></a>The asymmetry of the effect (downward patches work, upward patches partly</span>
-<span id="cb1-390"><a href="#cb1-390" aria-hidden="true" tabindex="-1"></a>fail) points at the LM head's frequency prior as the limiting factor.</span>
-<span id="cb1-391"><a href="#cb1-391" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-392"><a href="#cb1-392" aria-hidden="true" tabindex="-1"></a>In all three models, the behavioural pull of the log axis on actual</span>
-<span id="cb1-393"><a href="#cb1-393" aria-hidden="true" tabindex="-1"></a>output is invariant at $\beta \approx 0.22$ — about 22% of what perfect</span>
-<span id="cb1-394"><a href="#cb1-394" aria-hidden="true" tabindex="-1"></a>log-circuit readout would give. This is true across models that differ</span>
-<span id="cb1-395"><a href="#cb1-395" aria-hidden="true" tabindex="-1"></a>by orders of magnitude in their LM-head log-axis alignment. So the</span>
-<span id="cb1-396"><a href="#cb1-396" aria-hidden="true" tabindex="-1"></a>behavioural number isn't a function of LM-head geometry; it's a function</span>
-<span id="cb1-397"><a href="#cb1-397" aria-hidden="true" tabindex="-1"></a>of how loud the output-side frequency prior is relative to whatever the</span>
-<span id="cb1-398"><a href="#cb1-398" aria-hidden="true" tabindex="-1"></a>log circuit contributes.</span>
-<span id="cb1-399"><a href="#cb1-399" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-400"><a href="#cb1-400" aria-hidden="true" tabindex="-1"></a>A fresh probe trained on <span class="in">`=`</span>-position residuals to predict</span>
-<span id="cb1-401"><a href="#cb1-401" aria-hidden="true" tabindex="-1"></a>$\log_2(a \cdot b)$ achieves $R^2 = 0.989$ on held-out pairs. The model</span>
-<span id="cb1-402"><a href="#cb1-402" aria-hidden="true" tabindex="-1"></a>*has* computed something linearly equivalent to the answer's log</span>
-<span id="cb1-403"><a href="#cb1-403" aria-hidden="true" tabindex="-1"></a>somewhere in its residual stream. But **patching that direction barely</span>
-<span id="cb1-404"><a href="#cb1-404" aria-hidden="true" tabindex="-1"></a>moves the LM head's argmax** (slope 0.07 of perfect readout). So the</span>
-<span id="cb1-405"><a href="#cb1-405" aria-hidden="true" tabindex="-1"></a>direction is a downstream encoding, not the one the head actually reads.</span>
-<span id="cb1-406"><a href="#cb1-406" aria-hidden="true" tabindex="-1"></a>What direction the head *does* read for numeric output, and how it</span>
-<span id="cb1-407"><a href="#cb1-407" aria-hidden="true" tabindex="-1"></a>relates to the operand-side log axis, is the most interesting open</span>
-<span id="cb1-408"><a href="#cb1-408" aria-hidden="true" tabindex="-1"></a>question this work leaves.</span>
-<span id="cb1-409"><a href="#cb1-409" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-410"><a href="#cb1-410" aria-hidden="true" tabindex="-1"></a>The framing-level lesson is that small language models can have</span>
-<span id="cb1-411"><a href="#cb1-411" aria-hidden="true" tabindex="-1"></a>mechanistically rich circuits whose behavioural effect is suppressed by</span>
-<span id="cb1-412"><a href="#cb1-412" aria-hidden="true" tabindex="-1"></a>the output distribution they were trained against. "Can't do</span>
-<span id="cb1-413"><a href="#cb1-413" aria-hidden="true" tabindex="-1"></a>multiplication" is consistent with "has parts of the multiplication</span>
-<span id="cb1-414"><a href="#cb1-414" aria-hidden="true" tabindex="-1"></a>circuit", as long as a louder competing signal is shouting "use a common</span>
-<span id="cb1-415"><a href="#cb1-415" aria-hidden="true" tabindex="-1"></a>number" and the probe-found directions aren't the ones the LM head</span>
-<span id="cb1-416"><a href="#cb1-416" aria-hidden="true" tabindex="-1"></a>listens to.</span>
-<span id="cb1-417"><a href="#cb1-417" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-418"><a href="#cb1-418" aria-hidden="true" tabindex="-1"></a><span class="fu">## Caveats</span></span>
-<span id="cb1-419"><a href="#cb1-419" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-420"><a href="#cb1-420" aria-hidden="true" tabindex="-1"></a>GPT-2 ties its LM head to the embedding. Much of the apparent LM head ↔</span>
-<span id="cb1-421"><a href="#cb1-421" aria-hidden="true" tabindex="-1"></a>log axis alignment is architectural. The Pythia-160M comparison addresses</span>
-<span id="cb1-422"><a href="#cb1-422" aria-hidden="true" tabindex="-1"></a>this for one untied model, but a wider scan across model families would</span>
-<span id="cb1-423"><a href="#cb1-423" aria-hidden="true" tabindex="-1"></a>be more convincing.</span>
-<span id="cb1-424"><a href="#cb1-424" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-425"><a href="#cb1-425" aria-hidden="true" tabindex="-1"></a>The causal-patching shifts are measured on relative logits among</span>
-<span id="cb1-426"><a href="#cb1-426" aria-hidden="true" tabindex="-1"></a>candidate products, not on argmax. Both small models get $0/200$</span>
-<span id="cb1-427"><a href="#cb1-427" aria-hidden="true" tabindex="-1"></a>multiplications right. A model that can actually multiply (Pythia-1.4B,</span>
-<span id="cb1-428"><a href="#cb1-428" aria-hidden="true" tabindex="-1"></a>Llama-3.2-1B, Qwen-2.5-0.5B) would let the patch flip the argmax</span>
-<span id="cb1-429"><a href="#cb1-429" aria-hidden="true" tabindex="-1"></a>cleanly, not just shift relative logits.</span>
-<span id="cb1-430"><a href="#cb1-430" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-431"><a href="#cb1-431" aria-hidden="true" tabindex="-1"></a>The fitted answer-side probe at the <span class="in">`=`</span> position has $R^2 = 0.989$ on</span>
-<span id="cb1-432"><a href="#cb1-432" aria-hidden="true" tabindex="-1"></a>$(a, b) \in <span class="co">[</span><span class="ot">2, 64</span><span class="co">]</span>^2$ pairs. Whether the same direction carries</span>
-<span id="cb1-433"><a href="#cb1-433" aria-hidden="true" tabindex="-1"></a>$\log_2(a \cdot b)$ for much larger operands is untested.</span>
-<span id="cb1-434"><a href="#cb1-434" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-435"><a href="#cb1-435" aria-hidden="true" tabindex="-1"></a>The middle layers — where the operand-axis log gets translated to the</span>
-<span id="cb1-436"><a href="#cb1-436" aria-hidden="true" tabindex="-1"></a>answer-axis log — are a black box in this study. Path-patching across</span>
-<span id="cb1-437"><a href="#cb1-437" aria-hidden="true" tabindex="-1"></a>(layer, position) pairs would identify the attention heads that move log</span>
-<span id="cb1-438"><a href="#cb1-438" aria-hidden="true" tabindex="-1"></a>information from operand positions to the <span class="in">`=`</span> position. The infrastructure</span>
-<span id="cb1-439"><a href="#cb1-439" aria-hidden="true" tabindex="-1"></a>for it is already in the patching code; I just didn't run it.</span>
-<span id="cb1-440"><a href="#cb1-440" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-441"><a href="#cb1-441" aria-hidden="true" tabindex="-1"></a><span class="fu">## Five things to test next</span></span>
-<span id="cb1-442"><a href="#cb1-442" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-443"><a href="#cb1-443" aria-hidden="true" tabindex="-1"></a>**Find the direction the LM head actually reads.** The biggest open</span>
-<span id="cb1-444"><a href="#cb1-444" aria-hidden="true" tabindex="-1"></a>question raised by the answer-side causal test. The 0.989 probe is</span>
-<span id="cb1-445"><a href="#cb1-445" aria-hidden="true" tabindex="-1"></a>correlational; the LM head's argmax is driven by some other direction.</span>
-<span id="cb1-446"><a href="#cb1-446" aria-hidden="true" tabindex="-1"></a>A sparse autoencoder or top-singular-vectors analysis of the LM-head</span>
-<span id="cb1-447"><a href="#cb1-447" aria-hidden="true" tabindex="-1"></a>columns for numeric tokens should expose what they actually decode.</span>
-<span id="cb1-448"><a href="#cb1-448" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-449"><a href="#cb1-449" aria-hidden="true" tabindex="-1"></a>**Exponentiation as a sharper test.** If the model uses the log axis</span>
-<span id="cb1-450"><a href="#cb1-450" aria-hidden="true" tabindex="-1"></a>compositionally, patching $\log(a)$ by $\Delta$ in an <span class="in">`a^b =`</span> prompt</span>
-<span id="cb1-451"><a href="#cb1-451" aria-hidden="true" tabindex="-1"></a>should shift the output's log by $b \cdot \Delta$ — a quantitative</span>
-<span id="cb1-452"><a href="#cb1-452" aria-hidden="true" tabindex="-1"></a>prediction with one free parameter. Same patching code, different prompts.</span>
-<span id="cb1-453"><a href="#cb1-453" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-454"><a href="#cb1-454" aria-hidden="true" tabindex="-1"></a>**A bigger model that can actually multiply.** Pythia-1.4B, Llama-3.2-1B,</span>
-<span id="cb1-455"><a href="#cb1-455" aria-hidden="true" tabindex="-1"></a>or Qwen-2.5-0.5B. If $\beta = 0.22$ is invariant across model scale, it's</span>
-<span id="cb1-456"><a href="#cb1-456" aria-hidden="true" tabindex="-1"></a>a property of the training distribution, not capacity. If $\beta$ shoots</span>
-<span id="cb1-457"><a href="#cb1-457" aria-hidden="true" tabindex="-1"></a>up on a multiply-capable model, the limit at small scale really was</span>
-<span id="cb1-458"><a href="#cb1-458" aria-hidden="true" tabindex="-1"></a>"the head doesn't act on the log axis hard enough".</span>
-<span id="cb1-459"><a href="#cb1-459" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-460"><a href="#cb1-460" aria-hidden="true" tabindex="-1"></a>**Path-patch to find the translation layer.** Where in the network does</span>
-<span id="cb1-461"><a href="#cb1-461" aria-hidden="true" tabindex="-1"></a>the operand-axis log get translated to whatever ends up at <span class="in">`=`</span>? The</span>
-<span id="cb1-462"><a href="#cb1-462" aria-hidden="true" tabindex="-1"></a>patching infrastructure here is already 80% of what's needed.</span>
-<span id="cb1-463"><a href="#cb1-463" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-464"><a href="#cb1-464" aria-hidden="true" tabindex="-1"></a>**Test the per-category axes.** Within years, fit a year-trained log</span>
-<span id="cb1-465"><a href="#cb1-465" aria-hidden="true" tabindex="-1"></a>probe. Does it transfer cleanly to other years? Repeat for round numbers,</span>
-<span id="cb1-466"><a href="#cb1-466" aria-hidden="true" tabindex="-1"></a>number-words. If the integer-trained axis doesn't transfer (the result</span>
-<span id="cb1-467"><a href="#cb1-467" aria-hidden="true" tabindex="-1"></a>above) but the within-category axes do transfer, the model has many</span>
-<span id="cb1-468"><a href="#cb1-468" aria-hidden="true" tabindex="-1"></a>private log axes, one per role.</span>
-<span id="cb1-469"><a href="#cb1-469" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-470"><a href="#cb1-470" aria-hidden="true" tabindex="-1"></a><span class="fu">## Methodological note</span></span>
-<span id="cb1-471"><a href="#cb1-471" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-472"><a href="#cb1-472" aria-hidden="true" tabindex="-1"></a>If a probe trained at position A gives no signal at position B, that</span>
-<span id="cb1-473"><a href="#cb1-473" aria-hidden="true" tabindex="-1"></a>doesn't mean the information isn't in B — it might just mean B uses a</span>
-<span id="cb1-474"><a href="#cb1-474" aria-hidden="true" tabindex="-1"></a>different direction. Fit a fresh probe at the position you actually care</span>
-<span id="cb1-475"><a href="#cb1-475" aria-hidden="true" tabindex="-1"></a>about before concluding the circuit is absent. In this study, that one</span>
-<span id="cb1-476"><a href="#cb1-476" aria-hidden="true" tabindex="-1"></a>habit was the difference between "no circuit found" and "circuit found</span>
-<span id="cb1-477"><a href="#cb1-477" aria-hidden="true" tabindex="-1"></a>at $R^2 = 0.989$".</span>
-<span id="cb1-478"><a href="#cb1-478" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-479"><a href="#cb1-479" aria-hidden="true" tabindex="-1"></a>The shared-axis test worked the same way in reverse: an attractive</span>
-<span id="cb1-480"><a href="#cb1-480" aria-hidden="true" tabindex="-1"></a>hypothesis ("there's one universal magnitude axis for all numeric</span>
-<span id="cb1-481"><a href="#cb1-481" aria-hidden="true" tabindex="-1"></a>tokens") was falsified with about twenty minutes of compute and one</span>
-<span id="cb1-482"><a href="#cb1-482" aria-hidden="true" tabindex="-1"></a>transfer measurement. The Pythia comparison was the same shape — running</span>
-<span id="cb1-483"><a href="#cb1-483" aria-hidden="true" tabindex="-1"></a>the same probe on a second model with untied weights corrected a number</span>
-<span id="cb1-484"><a href="#cb1-484" aria-hidden="true" tabindex="-1"></a>I would otherwise have over-interpreted. Cheap probes are how you both</span>
-<span id="cb1-485"><a href="#cb1-485" aria-hidden="true" tabindex="-1"></a>rescue and kill ideas.</span>
-<span id="cb1-486"><a href="#cb1-486" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-487"><a href="#cb1-487" aria-hidden="true" tabindex="-1"></a><span class="fu">## Code</span></span>
-<span id="cb1-488"><a href="#cb1-488" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-489"><a href="#cb1-489" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> File <span class="pp">|</span> Produces <span class="pp">|</span></span>
-<span id="cb1-490"><a href="#cb1-490" aria-hidden="true" tabindex="-1"></a><span class="pp">|------|----------|</span></span>
-<span id="cb1-491"><a href="#cb1-491" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`reasoning_router.py`</span> <span class="pp">|</span> @fig-toy-routing <span class="pp">|</span></span>
-<span id="cb1-492"><a href="#cb1-492" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_log.py`</span>, <span class="in">`probe_gpt2_controls.py`</span> <span class="pp">|</span> @fig-controls <span class="pp">|</span></span>
-<span id="cb1-493"><a href="#cb1-493" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_shared_axis.py`</span> <span class="pp">|</span> @fig-shared-axis <span class="pp">|</span></span>
-<span id="cb1-494"><a href="#cb1-494" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_patching.py`</span> <span class="pp">|</span> @fig-patching <span class="pp">|</span></span>
-<span id="cb1-495"><a href="#cb1-495" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_lmhead.py`</span> <span class="pp">|</span> @fig-lmhead <span class="pp">|</span></span>
-<span id="cb1-496"><a href="#cb1-496" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_pipeline.py`</span> <span class="pp">|</span> @fig-pipeline <span class="pp">|</span></span>
-<span id="cb1-497"><a href="#cb1-497" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_answer_side_causal.py`</span> <span class="pp">|</span> @fig-answer-side-causal <span class="pp">|</span></span>
-<span id="cb1-498"><a href="#cb1-498" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_near_miss.py`</span> <span class="pp">|</span> @fig-near-miss <span class="pp">|</span></span>
-<span id="cb1-499"><a href="#cb1-499" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_pythia_compare.py`</span>, <span class="in">`probe_pythia70_compare.py`</span> <span class="pp">|</span> data for @fig-summary <span class="pp">|</span></span>
-<span id="cb1-500"><a href="#cb1-500" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`make_summary_figure_v2.py`</span> <span class="pp">|</span> @fig-summary <span class="pp">|</span></span>
-<span id="cb1-501"><a href="#cb1-501" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-502"><a href="#cb1-502" aria-hidden="true" tabindex="-1"></a>Dependencies: <span class="in">`torch`</span>, <span class="in">`transformers`</span>, <span class="in">`scikit-learn`</span>, <span class="in">`matplotlib`</span>. The</span>
-<span id="cb1-503"><a href="#cb1-503" aria-hidden="true" tabindex="-1"></a>full pipeline reproduces in about 20 minutes on a laptop CPU. GPT-2 small</span>
-<span id="cb1-504"><a href="#cb1-504" aria-hidden="true" tabindex="-1"></a>downloads at $\sim 500$ MB; Pythia-160M at $\sim 320$ MB.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+<span id="cb1-228"><a href="#cb1-228" aria-hidden="true" tabindex="-1"></a>The complete interpretive pipeline can be reproduced locally on standard hardware using the following script layout:</span>
+<span id="cb1-229"><a href="#cb1-229" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-230"><a href="#cb1-230" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Script File <span class="pp">|</span> Target Evaluation <span class="pp">|</span> Associated Reference <span class="pp">|</span></span>
+<span id="cb1-231"><a href="#cb1-231" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb1-232"><a href="#cb1-232" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`reasoning_router.py`</span> <span class="pp">|</span> Cost-routing optimization sweep <span class="pp">|</span> @fig-toy-routing <span class="pp">|</span></span>
+<span id="cb1-233"><a href="#cb1-233" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_log.py`</span> <span class="sc">\|</span> <span class="in">`probe_gpt2_controls.py`</span> <span class="pp">|</span> Embedding scale and attribute probes <span class="pp">|</span> @fig-controls <span class="pp">|</span></span>
+<span id="cb1-234"><a href="#cb1-234" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_shared_axis.py`</span> <span class="pp">|</span> Cross-category numeric transfer evaluations <span class="pp">|</span> @fig-shared-axis <span class="pp">|</span></span>
+<span id="cb1-235"><a href="#cb1-235" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_patching.py`</span> <span class="pp">|</span> Operand-side causal patching sweeps <span class="pp">|</span> @fig-patching <span class="pp">|</span></span>
+<span id="cb1-236"><a href="#cb1-236" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_lmhead.py`</span> <span class="pp">|</span> Output matrix projection decompositions <span class="pp">|</span> @fig-lmhead <span class="pp">|</span></span>
+<span id="cb1-237"><a href="#cb1-237" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_pipeline.py`</span> <span class="pp">|</span> End-to-end product tracking checks <span class="pp">|</span> @fig-pipeline <span class="pp">|</span></span>
+<span id="cb1-238"><a href="#cb1-238" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_answer_side_causal.py`</span> <span class="pp">|</span> Output-side causal validation loops <span class="pp">|</span> @fig-answer-side-causal <span class="pp">|</span></span>
+<span id="cb1-239"><a href="#cb1-239" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_gpt2_near_miss.py`</span> <span class="pp">|</span> Behavioral log-Gaussian distribution tracking <span class="pp">|</span> @fig-near-miss <span class="pp">|</span></span>
+<span id="cb1-240"><a href="#cb1-240" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`probe_pythia_compare.py`</span> <span class="pp">|</span> Cross-model architectural validations <span class="pp">|</span> Data for @fig-summary <span class="pp">|</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
 

@@ -10,7 +10,582 @@
 <atom:link href="https://hli1234.github.io/probing-small-lms/index.xml" rel="self" type="application/rss+xml"/>
 <description>Probes, patches, and pictures from the residual stream.</description>
 <generator>quarto-1.9.37</generator>
-<lastBuildDate>Sun, 17 May 2026 07:00:00 GMT</lastBuildDate>
+<lastBuildDate>Sun, 10 May 2026 07:00:00 GMT</lastBuildDate>
+<item>
+  <title>Does GPT-2 know how big a galaxy is?</title>
+  <dc:creator>Huangxing Li</dc:creator>
+  <link>https://hli1234.github.io/probing-small-lms/posts/physics_axes/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="the-setup" class="level2">
+<h2 class="anchored" data-anchor-id="the-setup">The setup</h2>
+<p>In a previous analysis, I demonstrated that the token embedding layer of GPT-2 small represents integer magnitude along a roughly logarithmic axis (<img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.95"> for <img src="https://latex.codecogs.com/png.latex?%5Clog_2(x)">). This raises a follow-up question: does the same model represent <em>physical</em> magnitudes—such as spatial dimensions, durations, and masses—using a similar logarithmic structure?</p>
+<p>The expected outcome is not immediately clear. On one hand, GPT-2’s training data includes texts discussing scales ranging from subatomic particles (<img src="https://latex.codecogs.com/png.latex?10%5E%7B-10%7D"> m) to humans (<img src="https://latex.codecogs.com/png.latex?%5Csim%201"> m) and galaxies (<img src="https://latex.codecogs.com/png.latex?10%5E%7B21%7D"> m). Consolidating these scales into a single “small-to-big” axis would allow the model to efficiently encode approximately 30 orders of magnitude along a single vector direction. On the other hand, terms like <code>electron</code>, <code>kilogram</code>, <code>galaxy</code>, and <code>marathon</code> primarily signify distinct semantic categories (particles, units, celestial structures, and athletic events). Their associated physical dimensions are secondary attributes that the model may not have isolated into a distinct geometric direction at the embedding layer.</p>
+<p>To evaluate this, I compiled three lists of physical entities with verified SI values:</p>
+<ul>
+<li><strong>Length</strong> (19 entities, <img src="https://latex.codecogs.com/png.latex?%5Clog_%7B10%7D"> values spanning <img src="https://latex.codecogs.com/png.latex?-10"> to <img src="https://latex.codecogs.com/png.latex?+21">): <code>atom</code>, <code>virus</code>, <code>cell</code>, <code>meter</code>, <code>inch</code>, <code>mile</code>, <code>marathon</code>, <code>earth</code>, <code>sun</code>, <code>lightyear</code>, <code>parsec</code>, <code>galaxy</code>, etc.</li>
+<li><strong>Time</strong> (13 entities, <img src="https://latex.codecogs.com/png.latex?%5Clog_%7B10%7D"> values spanning <img src="https://latex.codecogs.com/png.latex?-9"> to <img src="https://latex.codecogs.com/png.latex?+10.5">): <code>nanosecond</code>, <code>millisecond</code>, <code>second</code>, <code>minute</code>, <code>hour</code>, <code>day</code>, <code>month</code>, <code>year</code>, <code>decade</code>, <code>century</code>, <code>millennium</code>, etc.</li>
+<li><strong>Mass</strong> (13 entities, <img src="https://latex.codecogs.com/png.latex?%5Clog_%7B10%7D"> values spanning <img src="https://latex.codecogs.com/png.latex?-30"> to <img src="https://latex.codecogs.com/png.latex?+30">): <code>electron</code>, <code>proton</code>, <code>gram</code>, <code>ounce</code>, <code>pound</code>, <code>kilogram</code>, <code>ton</code>, <code>elephant</code>, <code>whale</code>, <code>earth</code>, <code>sun</code>.</li>
+</ul>
+<p>For each entity, I extracted the embedding vector for the token <code>" {name}"</code> (using a single leading space) from the layer 0 residual stream. Given the small sample sizes, I applied leave-one-out cross-validation to train a ridge regression probe.</p>
+<p>We evaluate two competing hypotheses:</p>
+<ul>
+<li><strong>H1 (Dimension-specific axes):</strong> Each physical dimension occupies an independent logarithmic axis. Probes trained on one category will fail to generalize to the others.</li>
+<li><strong>H2 (Universal magnitude axis):</strong> The model relies on a shared, unit-agnostic “small-to-big” direction, meaning a single probe can predict relative scale across length, time, and mass simultaneously.</li>
+</ul>
+</section>
+<section id="the-result" class="level2">
+<h2 class="anchored" data-anchor-id="the-result">The result</h2>
+<div id="fig-physics" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-physics-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://hli1234.github.io/probing-small-lms/posts/physics_axes/probe_gpt2_physics.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-physics-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Probing physical-scale axes in GPT-2 small. <strong>Top:</strong> within-category scatter of leave-one-out probe predictions vs true log₁₀(value). Time tracks the diagonal closely (<img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.81">); length is messy; mass is nearly random. <strong>Bottom left:</strong> cross-category transfer matrix. Diagonal entries are within-category leave-one-out R²; off-diagonal entries are train-on-one, test-on-another. <strong>Bottom middle:</strong> combined probe across all three categories (<img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.26">). <strong>Bottom right:</strong> summary numbers.
+</figcaption>
+</figure>
+</div>
+<p>The primary performance metrics are summarized below:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Category</th>
+<th>Within-category log <img src="https://latex.codecogs.com/png.latex?R%5E2"></th>
+<th>Within-category linear <img src="https://latex.codecogs.com/png.latex?R%5E2"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Time</strong></td>
+<td><strong>0.81</strong></td>
+<td><img src="https://latex.codecogs.com/png.latex?-0.07"></td>
+</tr>
+<tr class="even">
+<td>Length</td>
+<td>0.18</td>
+<td><img src="https://latex.codecogs.com/png.latex?-0.19"></td>
+</tr>
+<tr class="odd">
+<td>Mass</td>
+<td>0.03</td>
+<td><img src="https://latex.codecogs.com/png.latex?-0.27"></td>
+</tr>
+</tbody>
+</table>
+<p>The probe successfully resolves time on a clear logarithmic scale. Conversely, the representation of length is poorly defined, and mass is statistically indistinguishable from noise.</p>
+<p>Cross-category transfer is consistently weak or negative. The only modest exception is the <code>time → mass</code> transfer, which yields an <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%20+0.19">—statistically marginal, but higher than the other cross-category configurations. A unified probe trained across all 45 entities achieves an <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.26">, indicating that while some shared variance exists, it is fundamentally weak.</p>
+<p>Consequently, neither initial hypothesis is fully supported. There is no clean, universal magnitude axis, yet individual dimension-specific log axes do not consistently emerge either. Instead, the model exhibits an asymmetrical representation: a robust log-time axis, a weak log-length representation, and no discernible log-mass encoding at the embedding level.</p>
+</section>
+<section id="why-time-works-and-the-others-dont" class="level2">
+<h2 class="anchored" data-anchor-id="why-time-works-and-the-others-dont">Why time works and the others don’t</h2>
+<p>The performance disparity suggests that the representation of time is driven by linguistic structure rather than physical principles. In English, temporal terms form an explicit, linear hierarchy:</p>
+<blockquote class="blockquote">
+<p>nanosecond → microsecond → millisecond → second → minute → hour → day → week → month → year → decade → century → millennium</p>
+</blockquote>
+<p>These tokens are highly interchangeable syntactically and semantically. For example, the phrase <code>"for five {time-word}"</code> remains grammatically and structurally coherent across almost every entry in the sequence. Because these words share nearly all semantic attributes—functioning primarily as temporal units that modify duration—the embedding layer can efficiently compress their variance along a single geometric direction representing scale.</p>
+<p>Length and mass terms lack a comparable linear linguistic hierarchy. The length dataset contains a heterogeneous mixture of categories:</p>
+<ul>
+<li>Units of measurement (<code>millimeter</code>, <code>inch</code>, <code>meter</code>, <code>mile</code>, <code>lightyear</code>, <code>parsec</code>)</li>
+<li>Physical objects defined by their scale (<code>atom</code>, <code>virus</code>, <code>cell</code>, <code>galaxy</code>)</li>
+<li>Specific macro-entities (<code>earth</code>, <code>sun</code>, <code>moon</code>, <code>marathon</code>)</li>
+</ul>
+<p>Because these tokens span diverse semantic classes, the embedding for a token like <code>atom</code> primarily encodes its identity as a physical particle rather than its specific spatial dimension (<img src="https://latex.codecogs.com/png.latex?10%5E%7B-10%7D"> m). Similarly, <code>marathon</code> is embedded primarily as a sporting event rather than a representation of a 42 km distance.</p>
+<p>The mass category exhibits even greater semantic variance. It groups subatomic particles (<code>electron</code>, <code>proton</code>), standard weights (<code>gram</code>, <code>pound</code>, <code>kilogram</code>), animals (<code>elephant</code>, <code>whale</code>), and astronomical bodies (<code>earth</code>, <code>sun</code>). Because the shared attribute of mass is a tertiary feature of these tokens, the embedding layer organizes them by their primary semantic category rather than extracting their mass magnitude onto a shared axis.</p>
+<div class="callout callout-style-default callout-note callout-titled" title="The cleaner test, which I haven't run">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>The cleaner test, which I haven’t run
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>If this linguistic explanation holds, probing the representations <em>with clarifying context</em> should alter the results. Rather than feeding isolated tokens, presenting a template like <code>"The mass of a typical {entity} is"</code> and probing the residual stream at the final token should force the model to isolate the dimension of interest. This contextual constraint should yield cleaner magnitude representations for both length and mass.</p>
+</div>
+</div>
+</section>
+<section id="what-it-tells-you-about-llm-physics-intuition" class="level2">
+<h2 class="anchored" data-anchor-id="what-it-tells-you-about-llm-physics-intuition">What it tells you about LLM “physics intuition”</h2>
+<p>It is sometimes argued that large language models internalize structured, coherent models of physical reality purely from textual associations. For this claim to hold, a model would need to maintain an abstracted representation of scale—an understanding that astronomical objects are large across both spatial and mass dimensions, subatomic entities are uniformly small, and temporal descriptors map to continuous durations.</p>
+<p>This experiment serves as a minimal baseline test for that capacity. The results indicate that GPT-2 small constructs a structured representation for <em>time</em>, but fails to do so for <em>length</em> or <em>mass</em> at the foundational layer. A unit-agnostic scale axis is mostly absent (combined <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.26">), and cross-category generalizations are largely unsuccessful.</p>
+<p>This negative finding requires careful interpretation. The baseline evaluation relies strictly on uncontextualized token embeddings at layer 0 using a limited dataset, meaning it only evaluates whether these axes are explicitly organized at the initial entry point of the network. It is highly probable that:</p>
+<ul>
+<li>Higher-capacity models (such as Pythia-1.4B or Llama variants) possess sufficient geometric dimensionality to isolate scale metrics from primary semantic categories.</li>
+<li>Providing explicit contextual prompts isolates the targeted physical dimension, shifting the residual stream toward scale tracking.</li>
+<li>Evaluating layers deeper within the network will show improvement, as intermediate transformer blocks integrate context and map abstract properties onto the token representations.</li>
+</ul>
+<p>Thus, the baseline conclusion is specific: <strong>at the embedding layer, GPT-2 encodes a structured log-time axis but conflates length and mass magnitudes with primary token semantics</strong>. The model resolves temporal scales more readily than spatial or mass scales because the corresponding English vocabulary is structured as a clear, one-dimensional ladder.</p>
+</section>
+<section id="a-specific-prediction-and-the-test" class="level2">
+<h2 class="anchored" data-anchor-id="a-specific-prediction-and-the-test">A specific prediction — and the test</h2>
+<p>The linguistic-ladder hypothesis predicts that contextual prompts will expose the latent scale information for length and mass. By modifying the input from an isolated token to a structured prompt like <code>"The mass of a typical {entity} is about"</code>, the transformer layers should process the underlying physical attribute before reaching the final token (<code>"about"</code>). This structural constraint should surface the hidden magnitude information along a linear direction accessible to linear probes.</p>
+<p>To verify this, I re-ran the evaluations using contextualized inputs. The prompt template was set to <code>"The {size|duration|mass} of a typical {entity} is about"</code>, and the residual stream was probed at the final token position across all network layers.</p>
+<div class="callout callout-style-default callout-important callout-titled" title="Prediction confirmed">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>Prediction confirmed
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Introducing contextual prompts causes the peak layer performance for mass to rise from <strong>0.45 to 0.84</strong> <img src="https://latex.codecogs.com/png.latex?R%5E2">. Time increases from 0.88 to 0.95, and length improves from 0.30 to 0.48. This confirms that the underlying scale data is accessible within the model; the uncontextualized embedding token simply stores it orthogonal to a standard linear probe direction.</p>
+</div>
+</div>
+<div id="fig-physics-context" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-physics-context-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://hli1234.github.io/probing-small-lms/posts/physics_axes/probe_gpt2_physics_context.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-physics-context-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Layer-by-layer leave-one-out R² for <img src="https://latex.codecogs.com/png.latex?%5Clog_%7B10%7D(%5Ctext%7BSI%20value%7D)">, in two conditions: bare entity token (blue) versus contextualised prompt at the last token (red). For all three categories, contextualised probing reaches a higher peak R². The largest jump is for mass (0.45 → 0.84), confirming that the bare token was hiding magnitude behind semantic category. The layer profile is also informative: bare-token time peaks at layer 2 (embedding-level info), while contextualised probes peak near the final layer (context integration).
+</figcaption>
+</figure>
+</div>
+<p>The layer-by-layer performance profiles reveal different processing dynamics:</p>
+<ul>
+<li><strong>Uncontextualized time</strong> peaks early at <em>layer 2</em> and steadily decays in subsequent layers. This indicates that temporal scale information is encoded directly within the initial token representations and becomes diffused during deeper network processing. The temporal hierarchy is natively embedded in the token relationships.</li>
+<li><strong>Contextualized attributes (time, length, and mass)</strong> uniformly peak at or near the <em>final network layer</em>. This confirms that the scale representations are dynamically computed and assembled across successive transformer blocks rather than being retrieved from the embedding layer.</li>
+<li><strong>Uncontextualized mass</strong> rises from an <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.03"> at layer 0 to a peak of <img src="https://latex.codecogs.com/png.latex?0.45"> at layer 9 before declining. Even without explicit prompt steering, the intermediate layers partially isolate the mass attribute from raw token semantics, though less effectively than the context-steered model.</li>
+</ul>
+<p>In summary, GPT-2 preserves physical scale information across all three tested dimensions, but only encodes it natively at the embedding layer for time. Resolving length and mass scales requires contextual processing across the network blocks. The structural difference is real, but it reflects how the information is routed rather than its complete absence. Linear probing on bare tokens measures embedding organization, not the limits of the model’s downstream capacity.</p>
+</section>
+<section id="whats-next" class="level2">
+<h2 class="anchored" data-anchor-id="whats-next">What’s next</h2>
+<p>Following the verification of the context-driven retrieval, several lines of inquiry open up:</p>
+<p><strong>Dimensional analysis:</strong> Does GPT-2 maintain a structured representation of units? If prompted with <code>"velocity has units of"</code>, can its internal representations distinguish dimensionally valid expressions like <code>m/s</code> from dimensionally wrong ones like <code>s/m</code>? Probing whether the residual stream can linearize dimensional formulas would test its structural grasp of unit equations.</p>
+<p><strong>Order-of-magnitude estimation:</strong> Evaluating standard Fermi approximation problems (e.g., estimating regional labor statistics) can test whether the model executes multi-step scale arithmetic. If prior findings regarding log-axis shortcuts hold true, the network should resolve these calculations via vector addition along its internal logarithmic scales.</p>
+<p><strong>Cross-modal scale alignment:</strong> Evaluating multimodal models (such as CLIP variants) could determine if a shared “scale vector” aligns corresponding textual and visual tokens (e.g., mapping an image of a cellular structure to an image of a planetary system). A model exposed to diverse multimodal inputs may learn a clean scale axis from visual framing cues like magnification or perspective.</p>
+<p><strong>Direct isolation of the linguistic-ladder effect:</strong> This hypothesis can be isolated by probing abstract concept hierarchies that form explicit verbal scales independently of physical units. For instance, testing temperature sequences (<code>cold</code>, <code>cool</code>, <code>warm</code>, <code>hot</code>, <code>boiling</code>) or velocity descriptors (<code>slow</code>, <code>walking</code>, <code>running</code>, <code>flying</code>) should yield clean linear probe performance at layer 0, whereas semantic categories that lack a linear hierarchy should uniformly fail.</p>
+</section>
+<section id="code" class="level2">
+<h2 class="anchored" data-anchor-id="code">Code</h2>
+<ul>
+<li><code>probe_gpt2_physics.py</code> — Script for the isolated bare-token evaluations.</li>
+<li><code>probe_gpt2_physics_context.py</code> — Script for the contextualized evaluations and layer-by-layer tracking.</li>
+</ul>
+<p>Both files execute in under one minute on standard CPU architectures.</p>
+<hr>
+<p><em>Characterizing a model’s physical comprehension requires separating representation from accessibility. GPT-2 small retains robust scale representations across all three dimensions when evaluated using contextual prompts (<img src="https://latex.codecogs.com/png.latex?R%5E2%20%5Cin%20%5B0.48,%200.95%5D">). However, only temporal terms store this magnitude information natively within the embedding layer. Spatial and mass values are latent and must be actively extracted by the network layers through contextual processing.</em></p>
+
+
+<!-- -->
+
+</section>
+
+ ]]></description>
+  <category>interpretability</category>
+  <category>physics</category>
+  <category>language models</category>
+  <guid>https://hli1234.github.io/probing-small-lms/posts/physics_axes/</guid>
+  <pubDate>Sun, 10 May 2026 07:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>Looking for the log-multiplication trick inside a small language model</title>
+  <dc:creator>Huangxing Li</dc:creator>
+  <link>https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="the-question" class="level2">
+<h2 class="anchored" data-anchor-id="the-question">The question</h2>
+<p>For three centuries prior to the advent of digital calculators, scientific multiplication relied heavily on slide rules. The physical slide rule maps arithmetic computation onto a foundational geometric identity:</p>
+<p><span id="eq-shortcut"><img src="https://latex.codecogs.com/png.latex?%0Aa%20%5Ccdot%20b%20=%202%5E%7B%5Clog_2%20a%20+%20%5Clog_2%20b%7D%0A%5Ctag%7B1%7D"></span></p>
+<p>By computing spatial additions across logarithmic spaces, this layout trades complex multi-digit multiplication for three simple lookups and a single addition. Distances on a slide rule are spaced by <img src="https://latex.codecogs.com/png.latex?%5Clog_2(x)"> rather than linear magnitude, meaning that the physical transposition of parts mechanically performs exponential scaling.</p>
+<p>Whether an artificial neural network scales numerical features along an identical internal geometry remains an open question. When exposed to text containing frequent numerical patterns, does a standard transformer develop an internal representation analogous to a slide rule?</p>
+<p>While a comprehensive mechanistic investigation would involve training custom architectures from scratch under explicit capacity constraints, this evaluation targets a more direct question: <strong>is a log-multiplication shortcut already present within existing small pre-trained language models?</strong></p>
+<p>To trace this behavior, I evaluated GPT-2 small (124M parameters), Pythia-70M, and Pythia-160M. The evaluation relies on two primary interpretability paradigms: <strong>linear probing</strong> to read localized semantic features directly from the residual stream, and <strong>activation patching</strong> to test the downstream causal impact of surgically modifying vector coordinates along targeted directions.</p>
+<div class="callout callout-style-default callout-note callout-titled" title="Summary in one figure">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Summary in one figure
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div id="fig-summary" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-summary-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/summary_figure.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-summary-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Six panels covering three models (GPT-2 small / Pythia-70M / Pythia-160M). <strong>A:</strong> Embedding log-axis decodability in all three. Log dominates only under weight tying; untied Pythia models prefer linear by a hair. <strong>B:</strong> GPT-2 <em>does</em> compute <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> at the equals-sign at <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989"> — but on a different axis than the one used to read the operands. <strong>C:</strong> New result. Patching along that fresh answer-side direction moves the LM head’s argmax with slope only <img src="https://latex.codecogs.com/png.latex?0.07"> — the probe is correlational, not causal. <strong>D:</strong> LM-head log-axis fraction collapses to baseline once weights are untied, so GPT-2’s “28× baseline” was mostly architectural. <strong>E:</strong> Near-miss slope <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> is invariant at ~0.22 across all three models, even as panels A and D vary by orders of magnitude. <strong>F:</strong> synthesis.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="a-simple-model-first-when-should-a-learner-discover-the-shortcut" class="level2">
+<h2 class="anchored" data-anchor-id="a-simple-model-first-when-should-a-learner-discover-the-shortcut">A simple model first: when <em>should</em> a learner discover the shortcut?</h2>
+<p>To understand the optimization trade-offs, I first formulated a toy mathematical routing model to quantify cost pressures. Consider two independent computational pathways to solve for <img src="https://latex.codecogs.com/png.latex?z%20=%20a%20%5Ccdot%20b">:</p>
+<ul>
+<li><strong>Direct multiplication:</strong> This path scales with numerical complexity, carrying an algorithmic cost of <img src="https://latex.codecogs.com/png.latex?c_%7B%5Cmathrm%7Bmul%7D%7D(a,%20b)%20=%20%5Clog_2(a)%20%5Ccdot%20%5Clog_2(b)">. Simpler calculations (e.g., small single-digit values) require minimal bit manipulation, whereas macro-integers scale heavily.</li>
+<li><strong>Log–sum–exp shortcut:</strong> This path operates via fixed lookups with a static complexity baseline of <img src="https://latex.codecogs.com/png.latex?c_%7B%5Cmathrm%7Bshort%7D%7D%20=%206">, remaining uniform regardless of operand magnitude.</li>
+</ul>
+<p>We can define a learnable gating parameter <img src="https://latex.codecogs.com/png.latex?p%20%5Cin%20%5B0,%201%5D"> that observes <img src="https://latex.codecogs.com/png.latex?(%5Clog_2%20a,%20%5Clog_2%20b)"> to optimize path routing. Given a specific multiplication complexity penalty <img src="https://latex.codecogs.com/png.latex?%5Clambda">, the expected total cost is defined as:</p>
+<p><span id="eq-cost"><img src="https://latex.codecogs.com/png.latex?%0AC(p,%20a,%20b,%20%5Clambda)%20=%20(1-p)%5Ccdot%20%5Clambda%20%5Ccdot%20c_%7B%5Cmathrm%7Bmul%7D%7D(a,%20b)%20+%20p%20%5Ccdot%20c_%7B%5Cmathrm%7Bshort%7D%7D.%0A%5Ctag%7B2%7D"></span></p>
+<p>Sweeping across values of <img src="https://latex.codecogs.com/png.latex?%5Clambda"> traces a clear optimization boundary. Complex operand pairs switch to the fixed-cost shortcut early, whereas simple pairs resist routing changes. For trivial values involving <img src="https://latex.codecogs.com/png.latex?1">, direct calculation remains free because <img src="https://latex.codecogs.com/png.latex?%5Clog_2(1)%20=%200">, completely bypassing the need for a shortcut.</p>
+<div id="fig-toy-routing" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-toy-routing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/reasoning_path_vs_penalty.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-toy-routing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Toy soft-routing model under varying multiplication-penalty weight <img src="https://latex.codecogs.com/png.latex?%5Clambda">. <strong>Top:</strong> average shortcut probability across <img src="https://latex.codecogs.com/png.latex?(a,%20b)%20%5Cin%20%5B1,%2064%5D%5E2">. The trained gate matches the analytical softmin to three decimal places. <strong>Bottom:</strong> per-pair gate at five snapshot <img src="https://latex.codecogs.com/png.latex?%5Clambda"> values; the decision boundary sweeps from upper-right (hard pairs) to lower-left (easy pairs) as the penalty grows.
+</figcaption>
+</figure>
+</div>
+<p>Rather than acting as an empirical result, this model serves as a quantitative baseline. It provides a geometric hypothesis to compare against when testing whether real, text-trained models show any underlying trace of this efficiency-driven routing.</p>
+</section>
+<section id="how-gpt-2-represents-numbers" class="level2">
+<h2 class="anchored" data-anchor-id="how-gpt-2-represents-numbers">How GPT-2 represents numbers</h2>
+<p>To investigate how a model processes integer values internally, we can query the residual stream at a specific numerical token position. If a linear regression probe can accurately recover <img src="https://latex.codecogs.com/png.latex?%5Clog_2(x)"> from these hidden states, it indicates that the model isolates a distinct logarithmic vector direction within that layer.</p>
+<p>I passed integer sequences from 2 to 1023 into GPT-2 small as isolated space-prefixed tokens (<code>" 5"</code>, <code>" 17"</code>, <code>" 1024"</code>). At each transformer block, the hidden states were extracted to train a ridge regression probe targeted at tracking <img src="https://latex.codecogs.com/png.latex?%5Clog_2(x)"> along with several operational controls.</p>
+<p><strong>At the raw token embedding layer (layer 0)—prior to any attention or MLP processing—<img src="https://latex.codecogs.com/png.latex?%5Clog_2(x)"> is cleanly decodable with a cross-validated <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.95">.</strong> Direct linear scaling (<img src="https://latex.codecogs.com/png.latex?x">) is significantly less distinct, yielding an <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.77">, while randomized control labels drop completely to <img src="https://latex.codecogs.com/png.latex?R%5E2%20%5Capprox%200">. This confirms a clear embedding preference for logarithmic geometry.</p>
+<p>To verify whether this axis represents a precise logarithmic scale rather than a generic monotonic trend, I evaluated a parametric family of power-law transformations (<img src="https://latex.codecogs.com/png.latex?x%5E%5Calpha">). Probing performance peaks narrowly at <img src="https://latex.codecogs.com/png.latex?%5Calpha%20=%200">, which corresponds mathematically to the logarithmic limit. Had the embedding prioritized linear magnitude, performance would have instead centered at <img src="https://latex.codecogs.com/png.latex?%5Calpha%20=%201">.</p>
+<p>The embedding layer also natively encodes several non-linear attributes. Vector directions for numerical parity achieve a decodability of <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.94">, and the final digit (<img src="https://latex.codecogs.com/png.latex?x%20%5Cbmod%2010">) reaches an <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.92">. GPT-2 uncovers surface-level linguistic associations (e.g., clustering terms ending in <code>5</code>), yet remains entirely insensitive to deeper number-theoretic features like primality or divisibility by <img src="https://latex.codecogs.com/png.latex?7">, which fail to emerge above chance levels.</p>
+<div id="fig-controls" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-controls-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_controls.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-controls-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Linear-probe <img src="https://latex.codecogs.com/png.latex?R%5E2"> at each layer for monotone targets, non-monotone targets, and a noise baseline. The log axis, parity, and last digit are all decodable at the embedding (<img src="https://latex.codecogs.com/png.latex?R%5E2%20%3E%200.9">). Number-theoretic properties (mod 7, primality) and the shuffle control are at chance.
+</figcaption>
+</figure>
+</div>
+<section id="does-this-generalise-across-categories-of-numbers" class="level3">
+<h3 class="anchored" data-anchor-id="does-this-generalise-across-categories-of-numbers">Does this generalise across categories of numbers?</h3>
+<p>We can test whether this logarithmic vector space acts as a universal magnitude axis that extends uniformly across diverse numeric formats, such as calendar years (<code>" 1990"</code>), round numbers (<code>" 1000"</code>), or spelled-out words (<code>" million"</code>).</p>
+<p>The empirical data rejects this hypothesis. Applying the probe trained strictly on standard integers across these secondary groups yields highly degraded transfer metrics:</p>
+<ul>
+<li><strong>Calendar Years</strong> (152 single-token years between 1500 and 2099): <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%20-2274">. The probe yields near-constant values, completely failing to separate the relative scale of distinct years.</li>
+<li><strong>Round Multiples</strong> (33 single-token multiples of 100 up to 100,000): <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.22">, showing highly fragmented tracking.</li>
+<li><strong>Spelled Numbers</strong> (24 English number words): <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.14">, demonstrating no structural alignment.</li>
+</ul>
+<div id="fig-shared-axis" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-shared-axis-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_shared_axis.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-shared-axis-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: The integer-trained log probe applied to other numeric categories. Integers (training) sit cleanly on <img src="https://latex.codecogs.com/png.latex?y%20=%20x">. Years, round numbers, and number-words sit far off the line. Each numeric category lives on its own axis in embedding space; there is no universal magnitude direction.
+</figcaption>
+</figure>
+</div>
+<p>This demonstrates that numerical encodings are highly dependent on their specific context and textual role rather than their raw scalar values. The token (<code>" 1990"</code>) is processed primarily as a temporal marker rather than its underlying physical magnitude. Each distinct numerical category occupies an isolated coordinate space within the embedding.</p>
+</section>
+</section>
+<section id="does-the-log-axis-actually-do-anything" class="level2">
+<h2 class="anchored" data-anchor-id="does-the-log-axis-actually-do-anything">Does the log axis actually do anything?</h2>
+<p>Because linear decodability establishes correlation rather than causation, I applied activation patching at the operand position to verify whether the model actively routes information along this logarithmic axis during multiplication tasks.</p>
+<p>Consider a baseline prompt like <code>" 5 * 9 ="</code>. At the vector coordinates representing <code>" 5"</code>, the embedding’s projection along the discovered probe direction <img src="https://latex.codecogs.com/png.latex?w"> scales cleanly with <img src="https://latex.codecogs.com/png.latex?%5Clog_2(5)%20%5Capprox%202.3">. By applying a rank-1 vector shift along <img src="https://latex.codecogs.com/png.latex?w">, I adjusted this projection to map exactly to <img src="https://latex.codecogs.com/png.latex?%5Clog_2(2)%20=%201">, leaving orthogonal features like parity and last-digit identities unchanged. The network was then allowed to complete its forward pass across all 12 layers.</p>
+<p>For the prompt <code>" 5 * 9 ="</code>, shifting the operand vector from <img src="https://latex.codecogs.com/png.latex?%5Clog_2(5)%20%5Cto%20%5Clog_2(2)"> causes the output logit for <code>" 18"</code> (<img src="https://latex.codecogs.com/png.latex?2%20%5Ccdot%209">) to rise cleanly above the true answer of <code>" 45"</code> (<img src="https://latex.codecogs.com/png.latex?5%20%5Ccdot%209">). Artificially patching the coordinate toward <img src="https://latex.codecogs.com/png.latex?4"> smoothly shifts the top output token to <code>" 36"</code>. Conversely, applying equivalent vector interventions along random control paths yields no measurable logit shifts, proving that the causal effect is structurally isolated along the probed direction.</p>
+<p>The intervention reveals a notable asymmetry: downward patches (scaling to smaller values) shift output probabilities cleanly, whereas upward patches face significant resistance. This indicates that the language model head maintains a strong frequency prior that naturally penalizes large or rare numbers, readily accepting downward modifications while resisting shifts toward less common numerical outputs.</p>
+<div id="fig-patching" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-patching-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_patching.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-patching-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;5: Causal patching at the operand position. <strong>Left:</strong> change in relative logit, <img src="https://latex.codecogs.com/png.latex?%5Cmathrm%7Blogit%7D(a_%7B%5Cmathrm%7Btarget%7D%7D%20%5Ccdot%20b)%20-%20%5Cmathrm%7Blogit%7D(a%20%5Ccdot%20b)">, as we patch the log direction at the <code>" a"</code> position. Solid lines are the log direction; dotted lines are random directions of the same norm. <strong>Right:</strong> heatmap of relative logits for <code>" 5 * 9 ="</code>. The yellow most-favoured-product stripe follows the perfect-log-shortcut line <img src="https://latex.codecogs.com/png.latex?p%20=%20a_%7B%5Cmathrm%7Btarget%7D%7D%20%5Ccdot%20b"> for downward patches, then sticks at 45 once we patch toward larger numbers.
+</figcaption>
+</figure>
+</div>
+</section>
+<section id="does-the-model-actually-compute-logab" class="level2">
+<h2 class="anchored" data-anchor-id="does-the-model-actually-compute-logab">Does the model actually compute log(a·b)?</h2>
+<p>If a transformer implements an internal slide-rule mechanism, it must add the operand logarithms together and express the total product <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> within the residual stream at the equals-sign token (<code>"="</code>) right before the final prediction head.</p>
+<p>To test this, I evaluated whether the operand-side probe vector <img src="https://latex.codecogs.com/png.latex?w"> could read the combined product scale at the final token position. For <code>" 5 * 9 ="</code>, the probe reads <strong>10.76</strong> (instead of <img src="https://latex.codecogs.com/png.latex?%5Clog_2(45)%20%5Capprox%205.49">). For <code>" 3 * 7 ="</code>, it registers <strong>11.17</strong> (instead of <img src="https://latex.codecogs.com/png.latex?%5Clog_2(21)%20%5Capprox%204.39">). Evaluating across multiple combinations reveals a flat response curve, yielding an <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.011"> between the probe’s readouts and the true product value.</p>
+<p>This initial result suggests that the complete slide-rule circuit is absent; while the operands are tracked logarithmically at the input, the values do not appear to combine along this vector direction at the output stage.</p>
+<p>However, a transformer is not architecturally constrained to reuse the same vector space across different token positions. The model can map intermediate transformations onto an entirely fresh coordinate axis. To test this, I trained a separate ridge probe directly on the hidden states of the <code>"="</code> token across hundreds of random calculation pairs.</p>
+<div class="callout callout-style-default callout-important callout-titled" title="The key result">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Important</span>The key result
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This output-side probe successfully recovers the true product magnitude <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> with a cross-validated <strong><img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989"></strong>. The logarithmic representation of the answer is fully constructed. The network translates the individual operand components from their input axes, sums them, and maps the total product onto a completely distinct vector direction at the terminal token position.</p>
+</div>
+</div>
+<div id="fig-pipeline" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_pipeline.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6: The end-to-end pipeline. <strong>Left:</strong> patching the log component at the <code>=</code> position of real prompts; argmax over numeric tokens is stuck at <code>" 1"</code> regardless of <img src="https://latex.codecogs.com/png.latex?v_%7B%5Cmathrm%7Btarget%7D%7D"> . <strong>Middle:</strong> the operand-side probe’s readout at <code>=</code> is roughly constant (<img src="https://latex.codecogs.com/png.latex?%5Csim%2010.8">) across all prompts, uncorrelated with <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> (<img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.011">). <strong>Right:</strong> a fresh probe trained directly on residuals at <code>=</code> predicts <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> at <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989"> on held-out pairs.
+</figcaption>
+</figure>
+</div>
+<section id="a-correction-the-answer-side-direction-is-correlational-not-causal" class="level3">
+<h3 class="anchored" data-anchor-id="a-correction-the-answer-side-direction-is-correlational-not-causal">A correction: the answer-side direction is correlational, not causal</h3>
+<p>While achieving a decoding metric of <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989"> is notable, it is critical to verify whether this output direction is causally driving token generation or if it represents a passive downstream correlation—a phenomenon known as a probing illusion.</p>
+<p>To establish causal validity, I performed a directional patching sweep along this output vector space (<img src="https://latex.codecogs.com/png.latex?w_%7B%5Cmathrm%7Bans%7D%7D">) across various target scales (<img src="https://latex.codecogs.com/png.latex?v_%7B%5Cmathrm%7Btarget%7D%7D">). If the final prediction layer directly relies on this direction to select tokens, the generated values should scale linearly with the intervention, tracing a slope of <img src="https://latex.codecogs.com/png.latex?1"> on a log-log plot.</p>
+<p>The experimental intervention reveals a causal slope of only <strong>0.072</strong>. For the vast majority of mathematical prompts, modifying the internal states along this vector direction across an 11-unit log range fails to alter the output token. While <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> is highly decodable from this space, the prediction head does not rely on this specific vector coordinate to select numbers.</p>
+<div class="callout callout-style-default callout-warning callout-titled" title="Honest revision">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Honest revision
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>A strictly correlational analysis of the <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989"> metric would conclude that the complete log-arithmetic pathway is fully integrated. However, the causal intervention proves that the language model head bypasses this specific axis during final token selection. The model isolates a logarithmic tracking space for the combined product, but maps its final behavioral selections along independent, unaligned coordinate directions.</p>
+</div>
+</div>
+<div id="fig-answer-side-causal" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-answer-side-causal-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_answer_side_causal.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-answer-side-causal-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;7: Patching along the fitted answer-side direction <img src="https://latex.codecogs.com/png.latex?w_%7B%5Cmathrm%7Bans%7D%7D"> at the <code>=</code> position. <strong>Left:</strong> for each of eight multiplication prompts, <img src="https://latex.codecogs.com/png.latex?%5Clog_2"> of the LM head’s argmax-numeric vs the injected <img src="https://latex.codecogs.com/png.latex?v_%7B%5Cmathrm%7Btarget%7D%7D">. Compared to the dashed reference <img src="https://latex.codecogs.com/png.latex?y%20=%20v_%7B%5Cmathrm%7Btarget%7D%7D">, the curves are essentially flat — the LM head doesn’t read this direction. <strong>Right:</strong> rank of the closest single-token integer to <img src="https://latex.codecogs.com/png.latex?2%5E%7Bv_%7B%5Cmathrm%7Btarget%7D%7D%7D"> among all numeric tokens. The target never ends up at rank 0; it bottoms around 100-300 out of 638 numeric tokens.
+</figcaption>
+</figure>
+</div>
+</section>
+</section>
+<section id="two-more-checks-was-the-other-finding-real-or-an-artifact" class="level2">
+<h2 class="anchored" data-anchor-id="two-more-checks-was-the-other-finding-real-or-an-artifact">Two more checks: was the other finding real or an artifact?</h2>
+<p>Given these conflicting causal insights, I implemented two deeper quantitative checks to calibrate the behavioral boundaries of this system.</p>
+<section id="check-1-does-the-lm-head-act-on-the-log-axis" class="level3">
+<h3 class="anchored" data-anchor-id="check-1-does-the-lm-head-act-on-the-log-axis">Check 1 — does the LM head act on the log axis?</h3>
+<p>The rows of the final logit projection matrix determine how the internal vectors map to token output space. If the logarithmic axis directly steers the output distribution, these row projections should hold a prominent geometric presence within the weight matrix.</p>
+<p>In GPT-2 small, the discovered logarithmic vector accounts for 3.6% of the average squared norm across numerical token projection rows, standing significantly above a uniform isotropic baseline (<img src="https://latex.codecogs.com/png.latex?1/d%20=%200.13%5C%25">).</p>
+<p>However, GPT-2 small utilizes <strong>tied weights</strong>, meaning the output projection matrix is identical to the input embedding matrix. The geometric alignment is an architectural constraint rather than an emerged circuit. To isolate this, I repeated the projection analysis on <strong>Pythia-70M</strong> and <strong>Pythia-160M</strong>, which feature untied matrices:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Model</th>
+<th>Hidden Dimension <img src="https://latex.codecogs.com/png.latex?d"></th>
+<th>Weight Tying</th>
+<th>Log-Axis Projection Share</th>
+<th>Relative to Baseline (<img src="https://latex.codecogs.com/png.latex?1/d">)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>GPT-2 small (124M)</td>
+<td>768</td>
+<td>Tied</td>
+<td>3.6%</td>
+<td><strong>28×</strong></td>
+</tr>
+<tr class="even">
+<td>Pythia-70M</td>
+<td>512</td>
+<td>Untied</td>
+<td>0.19%</td>
+<td><strong>1.0×</strong></td>
+</tr>
+<tr class="odd">
+<td>Pythia-160M</td>
+<td>768</td>
+<td>Untied</td>
+<td>0.01%</td>
+<td><strong>0.1×</strong></td>
+</tr>
+</tbody>
+</table>
+<p>When weight tying is eliminated, the projection rows do not align with the integer embedding’s log axis. While the underlying logarithmic representation remains highly decodable across all three model embeddings (see panel A of Figure&nbsp;1), the prediction layer does not automatically preserve this alignment in untied architectures. The apparent structural integration observed in GPT-2 is primarily a byproduct of its shared weight configuration.</p>
+<div id="fig-lmhead" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-lmhead-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_lmhead.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-lmhead-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;8: LM-head log-axis decomposition for GPT-2 small. The 3.6% number averaged over numeric tokens is real, but the comparison with Pythia (see panel C of Figure&nbsp;1) shows most of that comes from weight tying.
+</figcaption>
+</figure>
+</div>
+</section>
+<section id="check-2-does-the-log-axis-pull-on-the-actual-output-distribution" class="level3">
+<h3 class="anchored" data-anchor-id="check-2-does-the-log-axis-pull-on-the-actual-output-distribution">Check 2 — does the log axis pull on the actual output distribution?</h3>
+<p>To measure pure behavioral influence across 200 random multiplication prompts <img src="https://latex.codecogs.com/png.latex?(a,%20b)%20%5Cin%20%5B2,%2050)%5E2">, I isolated the generated probability distributions across numerical tokens and fitted them to a standard log-Gaussian model:</p>
+<p><span id="eq-gauss"><img src="https://latex.codecogs.com/png.latex?%0AP(%5Ctext%7Bpredict%20%7D%20n%20%5Cmid%20a,%20b)%20%5Cpropto%20%5Cexp%5C!%5Cleft(-%5Cfrac%7B(%5Clog_2%20n%20-%20%5Cmu)%5E2%7D%7B2%5Csigma%5E2%7D%5Cright).%0A%5Ctag%7B3%7D"></span></p>
+<p>If the output is actively steered by log arithmetic, the mean parameter <img src="https://latex.codecogs.com/png.latex?%5Cmu"> should scale symmetrically with <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)">. If the axis is behaviorally inert, <img src="https://latex.codecogs.com/png.latex?%5Cmu"> will show zero statistical relationship to the true product.</p>
+<p>The empirical tracking sits precisely between these extremes:</p>
+<ul>
+<li><strong>Accuracy:</strong> 0% of the raw outputs match the correct arithmetic answer; small-scale language models cannot natively multiply integers.</li>
+<li><strong>Bias:</strong> The fitted center <img src="https://latex.codecogs.com/png.latex?%5Cmu"> is systematically shifted <img src="https://latex.codecogs.com/png.latex?%5Cmathbf%7B-3.25%7D"> log-units below the true value, underestimating products by a factor of roughly <img src="https://latex.codecogs.com/png.latex?9.5%5Ctimes">.</li>
+<li><strong>Coupling:</strong> Despite the severe downward bias, the scaling slope of <img src="https://latex.codecogs.com/png.latex?%5Cmu"> relative to the true values of <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> maintains a continuous, positive relationship at <img src="https://latex.codecogs.com/png.latex?%5Cboldsymbol%7B%5Cbeta%20=%200.22%7D">.</li>
+</ul>
+<p>Evaluating Pythia-70M reveals an identical scaling slope of <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%200.22">, while Pythia-160M stabilizes at <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%200.19">. Even though these models feature completely different output projection geometries (spanning orders of magnitude in explicit log-axis alignment), <strong>their behavioral output tracking remains uniform</strong>. The scaling limit is determined by the broader contextual frequency distributions shared across text training data rather than localized differences in projection head alignment.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Model</th>
+<th>Log-Axis Projection Share</th>
+<th>Output Scaling Slope <img src="https://latex.codecogs.com/png.latex?%5Cbeta"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>GPT-2 small</td>
+<td>3.6% (28× baseline)</td>
+<td>0.22</td>
+</tr>
+<tr class="even">
+<td>Pythia-70M</td>
+<td>0.19% (1.0× baseline)</td>
+<td>0.22</td>
+</tr>
+<tr class="odd">
+<td>Pythia-160M</td>
+<td>0.01% (0.1× baseline)</td>
+<td>0.19</td>
+</tr>
+</tbody>
+</table>
+<div id="fig-near-miss" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-near-miss-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_near_miss.png" class="img-fluid figure-img">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-near-miss-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;9: Near-miss arithmetic for GPT-2. <strong>Left:</strong> fitted mean log of the predicted distribution vs true <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)">. The mean predicted log tracks the true log with slope <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%200.22">, biased about 3 units below the <img src="https://latex.codecogs.com/png.latex?y%20=%20x"> line. <strong>Middle:</strong> fitted spread <img src="https://latex.codecogs.com/png.latex?%5Csigma"> is roughly constant at <img src="https://latex.codecogs.com/png.latex?%5Csim%201.9"> log-units. <strong>Right:</strong> three example predicted distributions; dotted vertical lines mark the true <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)">.
+</figcaption>
+</figure>
+</div>
+<p>This behavioral slope unifies the structural observations. The model successfully calculates <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> within its internal representations (<img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989">). The generation layer responds to this signal at an effective scale of ~22% relative to a perfect readout, though it remains largely masked by stronger text-frequency constraints. The underlying circuitry is present, but its execution is heavily muted.</p>
+</section>
+</section>
+<section id="summary-of-findings" class="level2">
+<h2 class="anchored" data-anchor-id="summary-of-findings">Summary of findings</h2>
+<ol type="1">
+<li><strong>Logarithmic Encodings at Layer 0:</strong> The embedding layer across all evaluated models represents integer features along a robust logarithmic axis, independent of separate coordinate paths tracking parity and final digits. Surface-level linguistic markers dominate organization, whereas deeper arithmetic qualities like primality do not form coherent vector alignments.</li>
+<li><strong>Causal Operand Patching:</strong> Structured modifications targeted along the input log axis exert direct, predictable changes on downstream token probabilities, whereas equivalent changes along random control axes have no effect. This confirms that the discovered directions represent active semantic scales rather than passive statistical noise.</li>
+<li><strong>Uniform Behavioral Scaling:</strong> Across models with fundamentally different output connectivity, the underlying logarithmic representation consistently biases token generation at a stable tracking ratio of <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20%5Capprox%200.22">. This suggests the output geometry is bounded by properties of the textual data distribution rather than localized architecture choices.</li>
+<li><strong>The Probing Disconnection:</strong> While the combined scale of an arithmetic product is highly decodable at the final token position (<img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989">), directional patching along this output axis fails to steer generation performance (causal slope = 0.07). The linear probe tracks a real internal representation, but isolates a direction that is not causally utilized by the final token generation layers.</li>
+</ol>
+<p>This demonstrates that small-scale transformers construct complex semantic representations whose behavioral expressions remain mostly suppressed by the dominant statistical distributions of their training text. An inability to output correct mathematical calculations does not imply the absolute absence of arithmetic circuits; rather, these underlying structures are simply overridden by louder linguistic priors.</p>
+</section>
+<section id="limitations" class="level2">
+<h2 class="anchored" data-anchor-id="limitations">Limitations</h2>
+<ul>
+<li><strong>Weight-Tying Dependencies:</strong> Because GPT-2 small ties its input and output weight matrices, a significant portion of its projection alignment is an architectural artifact. While evaluating untied Pythia variants mitigates this, mapping these circuits across larger, diverse model families remains necessary.</li>
+<li><strong>Logit-Space vs.&nbsp;Token Selections:</strong> The causal patching experiments measure shifts across continuous relative logits rather than forcing discrete token replacements. Because these small architectures achieve an absolute arithmetic accuracy of 0%, testing these interventions on scales that can successfully calculate products (e.g., Qwen or Llama variants) would provide clearer behavioral validation.</li>
+<li><strong>Extrapolation Limits:</strong> The output-side probe performance was verified across a limited operational span (<img src="https://latex.codecogs.com/png.latex?(a,%20b)%20%5Cin%20%5B2,%2064%5D%5E2">). Whether these logarithmic vector representations scale cleanly when processing significantly larger numeric ranges remains unverified.</li>
+</ul>
+</section>
+<section id="future-research-directions" class="level2">
+<h2 class="anchored" data-anchor-id="future-research-directions">Future research directions</h2>
+<ul>
+<li><strong>Isolating Causal Output Axes:</strong> Determining the exact vector spaces utilized by the prediction head to route numerical selections is a critical step. Applying sparse autoencoders or singular value decompositions to numeric projection columns should expose the precise directions driving token choices.</li>
+<li><strong>Validating via Exponentiation Prompts:</strong> Testing contextual calculations such as power routing (<code>a^b =</code>) can provide a more rigorous validation of the logarithmic layout. Patching the input vector by a factor of <img src="https://latex.codecogs.com/png.latex?%5CDelta"> should mathematically scale downstream outputs by <img src="https://latex.codecogs.com/png.latex?b%20%5Ccdot%20%5CDelta">.</li>
+<li><strong>Cross-Layer Circuit Tracing:</strong> Identifying the specific intermediate attention heads responsible for shifting operand features from their initial inputs to the final output token positions. The existing patching framework can be extended to implement layer-by-layer path patching.</li>
+</ul>
+</section>
+<section id="methodological-note" class="level2">
+<h2 class="anchored" data-anchor-id="methodological-note">Methodological note</h2>
+<p>When a linear probe optimized at a specific token position fails to resolve information when applied to a different position, it does not prove the feature is absent; the network may simply be utilizing an unaligned vector space. Optimizing a localized probe at the exact point of evaluation is a vital step in distinguishing between a missing circuit and an unaligned coordinate mapping.</p>
+<hr>
+</section>
+<section id="code" class="level2">
+<h2 class="anchored" data-anchor-id="code">Code</h2>
+<p>The complete interpretive pipeline can be reproduced locally on standard hardware using the following script layout:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Script File</th>
+<th>Target Evaluation</th>
+<th>Associated Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>reasoning_router.py</code></td>
+<td>Cost-routing optimization sweep</td>
+<td>Figure&nbsp;2</td>
+</tr>
+<tr class="even">
+<td><code>probe_gpt2_log.py</code> | <code>probe_gpt2_controls.py</code></td>
+<td>Embedding scale and attribute probes</td>
+<td>Figure&nbsp;3</td>
+</tr>
+<tr class="odd">
+<td><code>probe_gpt2_shared_axis.py</code></td>
+<td>Cross-category numeric transfer evaluations</td>
+<td>Figure&nbsp;4</td>
+</tr>
+<tr class="even">
+<td><code>probe_gpt2_patching.py</code></td>
+<td>Operand-side causal patching sweeps</td>
+<td>Figure&nbsp;5</td>
+</tr>
+<tr class="odd">
+<td><code>probe_gpt2_lmhead.py</code></td>
+<td>Output matrix projection decompositions</td>
+<td>Figure&nbsp;8</td>
+</tr>
+<tr class="even">
+<td><code>probe_gpt2_pipeline.py</code></td>
+<td>End-to-end product tracking checks</td>
+<td>Figure&nbsp;6</td>
+</tr>
+<tr class="odd">
+<td><code>probe_gpt2_answer_side_causal.py</code></td>
+<td>Output-side causal validation loops</td>
+<td>Figure&nbsp;7</td>
+</tr>
+<tr class="even">
+<td><code>probe_gpt2_near_miss.py</code></td>
+<td>Behavioral log-Gaussian distribution tracking</td>
+<td>Figure&nbsp;9</td>
+</tr>
+<tr class="odd">
+<td><code>probe_pythia_compare.py</code></td>
+<td>Cross-model architectural validations</td>
+<td>Data for Figure&nbsp;1</td>
+</tr>
+</tbody>
+</table>
+
+
+<!-- -->
+
+</section>
+
+ ]]></description>
+  <category>interpretability</category>
+  <category>mech-interp</category>
+  <category>language models</category>
+  <category>arithmetic</category>
+  <guid>https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/</guid>
+  <pubDate>Fri, 03 Apr 2026 07:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Transformers learn to anchor: a small experiment in positional periodicity</title>
   <dc:creator>Huangxing Li</dc:creator>
@@ -21,14 +596,14 @@
 
 
 
-<p>When you train a transformer on data that has a periodic structure, its attention pattern often shows striking spikes at integer multiples of the period — 24 steps, 48 steps, 72 steps. The natural reading is that the model has learned the periodicity of the data and is “looking at” the corresponding earlier events.</p>
-<p>But there’s a quieter, weirder possibility. The model could instead have compiled a fixed <em>positional</em> routine: “always look at slot 24, regardless of what’s there.” Under this story, the periodic spikes aren’t reports about which events are informative — they’re an internal indexing scheme that happens to align with the period of the data.</p>
-<p>The two stories make very different predictions about what attention “means,” and they’re hard to tell apart in a real recommendation system, where you can’t manipulate the data without retraining and you don’t know which events actually matter. So let’s set the real system aside and run the experiment in a sandbox where we control everything.</p>
+<p>When a transformer is trained on data with a periodic structure, its attention patterns frequently exhibit sharp spikes at integer multiples of the period — 24 steps, 48 steps, 72 steps. The conventional interpretation is that the model has learned the underlying periodicity of the data and is actively retrieving relevant past events.</p>
+<p>However, an alternative mechanism is possible: the model may have developed a fixed <em>positional</em> routine, learning to attend to specific slots regardless of their actual content. In this scenario, periodic spikes do not indicate that specific historical events are uniquely informative; instead, they function as an internal indexing scheme that happens to match the data’s period.</p>
+<p>These two hypotheses imply very different things about what attention weights actually represent. In production environments, such as recommendation systems, distinguishing between them is difficult because you cannot manipulate the data stream without retraining, and the true importance of individual features is often unknown. To isolate these mechanisms, we can evaluate a transformer in a fully controlled, synthetic environment.</p>
 <section id="the-setup" class="level2">
 <h2 class="anchored" data-anchor-id="the-setup">The setup</h2>
-<p>We train a tiny transformer (≈29k parameters, 2 layers, 1 attention head) to predict the next value of a noisy periodic signal:</p>
+<p>We train a small transformer (≈29k parameters, 2 layers, 1 attention head) to predict the next value of a noisy periodic signal:</p>
 <p><img src="https://latex.codecogs.com/png.latex?y_t%20=%20%5Ctext%7Bintercept%7D%20+%20%5Ctext%7Bslope%7D%20%5Ccdot%20t%20+%20A%20%5Csin(2%5Cpi%20t%20/%2024%20+%20%5Cphi)%20+%20%5Cvarepsilon_t"></p>
-<p>with random amplitude, phase, slope, and additive noise. The model sees the last 96 values (4 full periods) and predicts the next one.</p>
+<p>The amplitude, phase, slope, and additive noise are randomized across sequences. The model receives the past 96 values (corresponding to 4 full periods) as input and predicts the immediate next value.</p>
 <div id="fig-data" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-data-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -39,12 +614,12 @@ Figure&nbsp;1: Example sequences from the synthetic dataset. The red dot is the 
 </figcaption>
 </figure>
 </div>
-<p>This task has clean optimal behavior. To predict the next value you need to estimate the trend and the phase of the sine. To estimate phase, <em>any</em> point in the past is informative once you know its position relative to the target — and adjacent points are nearly equally informative because the underlying sine is smooth. There’s no special reason for “exactly 24 steps ago” to matter more than “23 steps ago.”</p>
-<p>A learnable query token is appended to the sequence; the model reads its prediction only from that position, mirroring the LLaTTE-style readout bottleneck. After 6 epochs of training the model reaches validation MSE 0.117, close to the irreducible noise floor (~0.09), and well below the predict-last-value baseline (0.210).</p>
+<p>This task has a straightforward optimal solution. To predict the next step, the model must estimate the trend and the phase of the sine wave. Because the underlying sine wave is smooth, adjacent points carry nearly identical phase information. Consequently, there is no intrinsic mathematical reason why an input exactly 24 steps ago should be significantly more informative than one 23 steps ago.</p>
+<p>A learnable query token is appended to the sequence, and the prediction is read exclusively from this position, mimicking a LLaTTE-style readout bottleneck. After 6 epochs of training, the model achieves a validation MSE of 0.117. This is close to the irreducible noise floor (~0.09) and well below the baseline performance of simply predicting the last observed value (0.210).</p>
 </section>
 <section id="what-the-attention-pattern-looks-like" class="level2">
 <h2 class="anchored" data-anchor-id="what-the-attention-pattern-looks-like">What the attention pattern looks like</h2>
-<p>We extract attention weights from the query token back to each input position, average across the layers, and then average across 1000 held-out sequences:</p>
+<p>We extract the attention weights from the query token to each input position, average them across both layers, and evaluate the mean profile across 1,000 held-out validation sequences:</p>
 <div id="fig-baseline" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-baseline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -55,11 +630,10 @@ Figure&nbsp;2: Average attention from the query token vs lag. Dashed red lines m
 </figcaption>
 </figure>
 </div>
-<p>There it is. Sharp recurring spikes, roughly one period apart, plus a strong recency peak near lag 1. The model has learned positional anchoring.</p>
-<p>A couple of details worth flagging now, since they’ll matter for the interventions:</p>
+<p>The resulting profile shows clear, recurring spikes spaced roughly one period apart, alongside a strong recency bias near lag 1. This matches the expected pattern, but two specific details warrant closer inspection before running interventions:</p>
 <ol type="1">
-<li><p><strong>The anchors are slightly off the literal period.</strong> The peaks sit at lags 23, 45, 69, not 24, 48, 72. This is itself a hint of B: the data’s period is exactly 24, but the model picked something else. Why? My best guess: causal attention favors looking <em>into</em> the past rather than <em>at</em> the period boundary; lag 23 gives almost the same phase information as lag 24 but is one step deeper into the predictive horizon. Either way, the discrepancy means the spike locations are a learned implementation detail, not a transcription of the data’s period.</p></li>
-<li><p><strong>Lag 23 gets ~13× more attention than lag 22.</strong> A zoom-in:</p></li>
+<li><p><strong>The anchors deviate slightly from the true period.</strong> The peaks occur at lags of 23, 45, and 69, rather than 24, 48, and 72. This discrepancy suggests the model is not simply transcribing the data’s period. A likely explanation is that causal attention favors looking further into the past; lag 23 provides nearly identical phase information to lag 24 but extends one step deeper into the history. This indicates the spike locations are a learned structural artifact rather than a direct reflection of the data structure.</p></li>
+<li><p><strong>Lag 23 receives roughly 13× more attention than lag 22.</strong> A zoom-in:</p></li>
 </ol>
 <div id="fig-zoom" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -71,12 +645,12 @@ Figure&nbsp;3: Zoomed view around the lag-23 spike. The dashed red line is the l
 </figcaption>
 </figure>
 </div>
-<p>Two adjacent positions, near-identical content, very different attention weight. This is the configuration the swap experiment will exploit.</p>
-<p>So far everything is consistent with both interpretations. The model could be paying attention at lag 23 because it has learned that the period-aligned point is informative (A), or because it has compiled a positional reading routine (B). Time to disambiguate.</p>
+<p>Despite these two adjacent positions holding nearly identical content, their attention weights differ by an order of magnitude. We can exploit this variance to test the model’s behavior.</p>
+<p>At this stage, the observations are compatible with both hypotheses: the model might attend to lag 23 because it associates that relative position with predictive utility, or it might be executing a rigid positional heuristic.</p>
 </section>
 <section id="intervention-1-shift-the-period-watch-the-attention" class="level2">
 <h2 class="anchored" data-anchor-id="intervention-1-shift-the-period-watch-the-attention">Intervention 1: shift the period, watch the attention</h2>
-<p>If the model is tracking the periodic signal in the data, then changing where the period actually aligns should move the attention spikes. Concretely: we generate sequences where the prediction target sits 4 steps after the input window (instead of 1 step after, as in training). Now the “one period before target” point sits at lag 21 from the end of the input window, not lag 24. Under A, the spike should follow the signal. Under B, the spike stays where the model put it.</p>
+<p>If the model dynamically tracks the periodic signal within the data, shifting the alignment of the period should cause the attention spikes to shift accordingly. To test this, we generate sequences where the prediction target is positioned 4 steps after the input window (rather than 1 step after, as seen during training). This shifts the optimal lookback point from lag 24 to lag 21 relative to the end of the input window. If the model is content-driven, the spike should move to lag 21. If it relies on fixed positions, the spike should remain stationary.</p>
 <div id="fig-offset" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-offset-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -87,17 +661,15 @@ Figure&nbsp;4: Attention pattern under baseline (predict t+1) and offset target 
 </figcaption>
 </figure>
 </div>
-<p>You can only see one curve because the two are exactly on top of each other — the baseline and offset attention patterns are identical to ~3 decimal places at every lag. The model’s attention pattern is completely insensitive to where the period actually aligns relative to the target.</p>
-<p>Meanwhile prediction MSE went from 0.117 to 0.403 — a 3.4× degradation. The model is paying a real cost for keeping its attention pinned to the wrong positions. It would benefit from moving the spikes, and it doesn’t.</p>
-<p>This rules out the strongest form of A. The attention pattern is not “wherever the period-aligned points happen to be.” It’s wherever the model has learned to look.</p>
+<p>The baseline and offset attention curves overlap entirely, showing identical values to roughly three decimal places at every lag. The attention distribution is completely unresponsive to changes in where the period actually aligns relative to the target.</p>
+<p>As a consequence of this rigidity, the prediction MSE degrades from 0.117 to 0.403—a 3.4× increase in error. The model incurs a substantial performance penalty because it cannot adapt its attention spikes to the new alignment. This result rules out the hypothesis that the attention pattern dynamically tracks the signal’s period.</p>
 </section>
 <section id="intervention-2-swap-the-contents" class="level2">
 <h2 class="anchored" data-anchor-id="intervention-2-swap-the-contents">Intervention 2: swap the contents</h2>
-<p>OK, but maybe the model has just learned a fixed positional routine that <em>usually</em> aligns with the period and treats the value at that position as informative. In that case, the value at the anchor position should still matter to the model. We can test this by leaving the anchor position alone but changing what value sits there.</p>
-<p>The anchor is at lag 23. Its near neighbor at lag 22 carries essentially the same information (autocorrelation between adjacent points in a sine with period 24 is ~0.97). We do two interventions:</p>
+<p>Even if the model uses a fixed positional routine, it might still treat the value at that specific anchor position as the primary informative feature. We can test whether the model is sensitive to the content of the anchor slot by manipulating the values at lags 22 and 23. Because the autocorrelation between adjacent points in a sine wave with a period of 24 is high (~0.97), these slots contain very similar signal profiles. We perform two distinct interventions:</p>
 <ul>
-<li><strong>Swap.</strong> Exchange the values at lag 22 and lag 23. Position 23 now holds what used to be at position 22 (similar but not identical value); position 22 now holds the old anchor value. If attention is following informative content, it should move to position 22.</li>
-<li><strong>Corrupt.</strong> Replace the value at lag 23 with random Gaussian noise. If attention reflects informativeness, it should drop (the value is now uninformative).</li>
+<li><strong>Swap.</strong> Exchange the values at lag 22 and lag 23. Position 23 now contains the value originally at position 22, and vice versa. If the attention mechanism targets the underlying content, the peak weight should shift to position 22.</li>
+<li><strong>Corrupt.</strong> Replace the value at lag 23 with random Gaussian noise. If attention depends on feature relevance, the weight at this position should drop significantly.</li>
 </ul>
 <div id="fig-swap" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
@@ -109,7 +681,7 @@ Figure&nbsp;5: Three attention curves — baseline, after value swap, and after 
 </figcaption>
 </figure>
 </div>
-<p>Three curves, one shape. The attention pattern is unchanged under both interventions, down to the third decimal. Numerically:</p>
+<p>All three interventions yield identical attention profiles down to the third decimal place:</p>
 <div id="tbl-attn" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-attn-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -143,8 +715,8 @@ Table&nbsp;1: Attention weights at the anchor position and its neighbor under ea
 </div>
 </figure>
 </div>
-<p>Note the small <em>increase</em> in attention after corruption. The model didn’t just fail to redirect attention away from a now-meaningless slot — it slightly increased the weight. The anchor position is a routine, not a referendum on what’s there.</p>
-<p>The prediction MSE tells a coherent story:</p>
+<p>Notably, attention at the anchor position increases slightly after corruption. The model fails to redirect attention away from the degraded slot; instead, it enforces its positional routine regardless of data quality.</p>
+<p>The impact on prediction error reflects this rigidity:</p>
 <div id="tbl-mse" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-mse-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -180,23 +752,23 @@ Table&nbsp;2: Prediction MSE under each intervention. The model cannot route aro
 </div>
 </figure>
 </div>
-<p>The swap barely hurts (the swapped values are nearly identical, and the model reads them through the same anchor either way). Corruption hurts noticeably, because the model is <em>still reading from the corrupted position</em> and is now putting noise into its prediction. It cannot route around the broken anchor.</p>
+<p>The swap causes negligible harm because the exchanged values are highly correlated and read through the same structural anchor. However, corrupting lag 23 noticeably increases the error. Because the model continues to attend heavily to the corrupted slot, it incorporates pure noise into its final prediction, demonstrating an inability to route around a broken anchor.</p>
 </section>
-<section id="what-this-shows-and-what-it-doesnt" class="level2">
-<h2 class="anchored" data-anchor-id="what-this-shows-and-what-it-doesnt">What this shows, and what it doesn’t</h2>
-<p>In this controlled setting the model very clearly does Interpretation B. Periodic attention spikes are positional anchors, not pointers at informative events. The evidence:</p>
+<section id="we-learnt-and-carefully-not-learnt" class="level2">
+<h2 class="anchored" data-anchor-id="we-learnt-and-carefully-not-learnt">We learnt (and carefully not learnt)</h2>
+<p>In this synthetic environment, the model strictly exhibits positional anchoring rather than content-driven retrieval. The findings are supported by several points:</p>
 <ul>
-<li>The spikes don’t sit on the literal period (lag 23, not lag 24).</li>
-<li>They don’t move when the period of the data shifts.</li>
-<li>They don’t move when the values at those positions are swapped or replaced with noise.</li>
-<li>The model pays a measurable prediction cost rather than redirecting attention.</li>
+<li>The attention spikes do not align with the true physical period of the data (lag 23 vs.&nbsp;lag 24).</li>
+<li>The spikes remain fixed when the underlying period of the data shifts.</li>
+<li>The attention weights do not change when the contents of the target positions are swapped or replaced with noise.</li>
+<li>The model accepts a significant increase in prediction error rather than shifting its attention weights.</li>
 </ul>
-<p>What this does <em>not</em> show, in order of importance:</p>
+<p>However, these findings come with specific caveats:</p>
 <ol type="1">
-<li><p><strong>This isn’t a refutation of A in real systems.</strong> Real user behavior has genuine routines — people do click ads at the same time of day. A model trained on real data probably learns <em>both</em> a periodic anchoring strategy <em>and</em> picks up on event-level signal. The experiment shows that anchoring is a thing transformers can learn purely from positional cues; it doesn’t quantify how much of any real attention pattern is anchoring vs.&nbsp;content.</p></li>
-<li><p><strong>The synthetic data is much simpler than user behavior.</strong> With a single dominant frequency and Gaussian noise, the cheapest strategy may genuinely be “anchor on the period and reconstruct.” Real sequences have multiple time scales, irregular spacing, and heterogeneous content; the cost-benefit tradeoff for anchoring is different. I’d expect anchoring to be <em>less</em> extreme there, with more content-sensitivity mixed in.</p></li>
-<li><p><strong>One model, one seed, one period.</strong> I didn’t sweep architectures or seeds. The qualitative finding (positional anchors exist and dominate attention) was robust enough to show up clearly on the first training run, but the precise lag of the spikes is an implementation detail of this particular run.</p></li>
-<li><p><strong>The anchoring is causally consequential.</strong> Corruption of the anchor degrades MSE; the model can’t compensate. This is the part that should make us cautious about interpreting attention as “what the model thinks is informative.” The model thinks the slot is informative — and is wrong, in a way it can’t correct.</p></li>
+<li><p><strong>This does not disprove content-driven attention in production systems.</strong> Real-world user behavior contains actual periodic routines — people do click ads at the same time of day. Models trained on complex data likely combine positional anchoring with genuine content-driven features. The experiment demonstrates that anchoring can emerge purely from positional cues, but it does not measure the balance between anchoring and content selection in large-scale models.</p></li>
+<li><p><strong>The synthetic dataset is simpler than real-world data.</strong> A signal defined by a single dominant frequency and Gaussian noise makes a fixed “anchor and reconstruct” strategy highly cost-effective. Real-world sequences feature irregular spacing, multiple overlapping time horizons, and heterogeneous content, which changes the trade-offs and likely reduces the severity of pure anchoring.</p></li>
+<li><p><strong>The scope is limited to a single model instance.</strong> We did not perform a broad sweep of architectures or initialization seeds. While the presence of positional anchors was robust enough to appear clearly on the first run, the exact lag of the spikes should be viewed as an implementation detail of this specific training instance.</p></li>
+<li><p><strong>The anchoring behavior dictates downstream performance.</strong> Corrupting the anchor directly degrades the final MSE because the model cannot adjust. This highlights why interpreting attention weights as a proxy for “feature importance” can be misleading: the model treats the slot as important even when its contents are demonstrably harmful to the prediction.</p></li>
 </ol>
 </section>
 <section id="the-takeaway" class="level2">
@@ -214,577 +786,8 @@ Table&nbsp;2: Prediction MSE under each intervention. The model cannot route aro
   <category>transformers</category>
   <category>experiments</category>
   <guid>https://hli1234.github.io/probing-small-lms/posts/anchoring-blog/</guid>
-  <pubDate>Sun, 17 May 2026 07:00:00 GMT</pubDate>
+  <pubDate>Wed, 10 Dec 2025 08:00:00 GMT</pubDate>
   <media:content url="https://hli1234.github.io/probing-small-lms/posts/anchoring-blog/figures/fig1_baseline_attention.png" medium="image" type="image/png" height="58" width="144"/>
-</item>
-<item>
-  <title>Does GPT-2 know how big a galaxy is?</title>
-  <dc:creator>Huangxing Li</dc:creator>
-  <link>https://hli1234.github.io/probing-small-lms/posts/physics_axes/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<section id="the-setup" class="level2">
-<h2 class="anchored" data-anchor-id="the-setup">The setup</h2>
-<p>In an <a href="../log_shortcut_findings/log_shortcut_findings.qmd">earlier post</a> I showed that GPT-2 small’s token embedding represents integer magnitude on a roughly logarithmic axis (<img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.95"> for <img src="https://latex.codecogs.com/png.latex?%5Clog_2(x)">). The natural generalisation: does the same model represent <em>physical</em> magnitude — sizes, durations, masses — on similar axes?</p>
-<p>It’s not obvious which way this should go. On one hand, GPT-2 has read text about atoms (<img src="https://latex.codecogs.com/png.latex?10%5E%7B-10%7D"> m), humans (<img src="https://latex.codecogs.com/png.latex?%5Csim%201"> m), and galaxies (<img src="https://latex.codecogs.com/png.latex?10%5E%7B21%7D"> m). A unified “small-to-big” axis would let the model encode 30 orders of magnitude in a single direction, which is efficient. On the other hand, words like <code>electron</code>, <code>kilogram</code>, <code>galaxy</code>, and <code>marathon</code> are first particles, units, celestial bodies, and races; their mass or length is a secondary attribute that the language model may or may not have factored out into a clean direction.</p>
-<p>To test, I assembled three lists of physical entities with known SI values:</p>
-<ul>
-<li><strong>Length</strong> (19 entities, log₁₀ spanning <img src="https://latex.codecogs.com/png.latex?-10"> to <img src="https://latex.codecogs.com/png.latex?+21">): <code>atom</code>, <code>virus</code>, <code>cell</code>, <code>meter</code>, <code>inch</code>, <code>mile</code>, <code>marathon</code>, <code>earth</code>, <code>sun</code>, <code>lightyear</code>, <code>parsec</code>, <code>galaxy</code>, etc.</li>
-<li><strong>Time</strong> (13 entities, log₁₀ from <img src="https://latex.codecogs.com/png.latex?-9"> to <img src="https://latex.codecogs.com/png.latex?+10.5">): <code>nanosecond</code>, <code>millisecond</code>, <code>second</code>, <code>minute</code>, <code>hour</code>, <code>day</code>, <code>month</code>, <code>year</code>, <code>decade</code>, <code>century</code>, <code>millennium</code>, etc.</li>
-<li><strong>Mass</strong> (13 entities, log₁₀ from <img src="https://latex.codecogs.com/png.latex?-30"> to <img src="https://latex.codecogs.com/png.latex?+30">): <code>electron</code>, <code>proton</code>, <code>gram</code>, <code>ounce</code>, <code>pound</code>, <code>kilogram</code>, <code>ton</code>, <code>elephant</code>, <code>whale</code>, <code>earth</code>, <code>sun</code>.</li>
-</ul>
-<p>For each entity I take the embedding of <code>" {name}"</code> (single space prefix) and use the last token’s residual at layer 0. With small datasets I use leave-one-out cross-validation on a ridge probe.</p>
-<p>The two hypotheses being tested:</p>
-<ul>
-<li><strong>H1 (separate axes).</strong> Each physical dimension has its own log axis, not shared with the others. Probes trained on one don’t transfer.</li>
-<li><strong>H2 (unit-agnostic magnitude).</strong> There is a shared “small-to-big” direction; the same probe works across length, time, and mass.</li>
-</ul>
-</section>
-<section id="the-result" class="level2">
-<h2 class="anchored" data-anchor-id="the-result">The result</h2>
-<div id="fig-physics" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-physics-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="https://hli1234.github.io/probing-small-lms/posts/physics_axes/probe_gpt2_physics.png" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-physics-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;1: Probing physical-scale axes in GPT-2 small. <strong>Top:</strong> within-category scatter of leave-one-out probe predictions vs true log₁₀(value). Time tracks the diagonal closely (<img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.81">); length is messy; mass is nearly random. <strong>Bottom left:</strong> cross-category transfer matrix. Diagonal entries are within-category leave-one-out R²; off-diagonal entries are train-on-one, test-on-another. <strong>Bottom middle:</strong> combined probe across all three categories (<img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.26">). <strong>Bottom right:</strong> summary numbers.
-</figcaption>
-</figure>
-</div>
-<p>The headline numbers:</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Category</th>
-<th>Within-category log R²</th>
-<th>Within-category linear R²</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><strong>Time</strong></td>
-<td><strong>0.81</strong></td>
-<td><img src="https://latex.codecogs.com/png.latex?-0.07"></td>
-</tr>
-<tr class="even">
-<td>Length</td>
-<td>0.18</td>
-<td><img src="https://latex.codecogs.com/png.latex?-0.19"></td>
-</tr>
-<tr class="odd">
-<td>Mass</td>
-<td>0.03</td>
-<td><img src="https://latex.codecogs.com/png.latex?-0.27"></td>
-</tr>
-</tbody>
-</table>
-<p>Time is encoded on a clear log axis. Length is mostly noise. Mass is essentially random.</p>
-<p>Cross-category transfer is mostly negative, with one exception: <code>time → mass</code> gives <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%20+0.19">, which is barely above zero but more than the others. The combined probe across all 45 entities gives <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.26"> — there’s <em>some</em> shared structure, but it’s weak.</p>
-<p>So both hypotheses lose: there is no clean unit-agnostic axis, but neither do the per-category axes individually work well. The model has a clean log-time axis, weak log-length, no log-mass.</p>
-</section>
-<section id="why-time-works-and-the-others-dont" class="level2">
-<h2 class="anchored" data-anchor-id="why-time-works-and-the-others-dont">Why time works and the others don’t</h2>
-<p>The first thing to ask is whether time is special because of physics or because of language. I think it’s mostly language. Time words form a conventional one-dimensional ladder in English:</p>
-<blockquote class="blockquote">
-<p>nanosecond → microsecond → millisecond → second → minute → hour → day → week → month → year → decade → century → millennium</p>
-</blockquote>
-<p>These tokens are functionally interchangeable in many contexts — <code>"for five {time-word}"</code> parses for almost every entry in that ladder. The embedding can therefore afford to compress them along a single “duration” direction, because almost everything else about these words is shared (they’re all temporal units modifying durations and frequencies).</p>
-<p>Length and mass don’t have an analogous unidimensional ladder. The “length words” I used are a mix of:</p>
-<ul>
-<li>Units of measurement: <code>millimeter</code>, <code>inch</code>, <code>meter</code>, <code>mile</code>, <code>lightyear</code>, <code>parsec</code></li>
-<li>Objects characterised primarily by length scale: <code>atom</code>, <code>virus</code>, <code>cell</code>, <code>galaxy</code></li>
-<li>Specific entities: <code>earth</code>, <code>sun</code>, <code>moon</code>, <code>marathon</code></li>
-</ul>
-<p>These belong to different semantic categories. The embedding of <code>atom</code> probably encodes “this is a kind of particle” more strongly than “this is <img src="https://latex.codecogs.com/png.latex?10%5E%7B-10%7D"> m long”. The embedding of <code>marathon</code> encodes “this is a race” more strongly than “this is 42 km”.</p>
-<p>Mass is worse still. <code>electron</code>, <code>proton</code>, and <code>neutron</code> are subatomic particles; <code>gram</code>, <code>ounce</code>, <code>pound</code>, <code>kilogram</code>, <code>ton</code> are units; <code>elephant</code>, <code>whale</code> are animals; <code>earth</code>, <code>sun</code> are celestial bodies. The mass-magnitude attribute these all share is a tertiary feature, not something the embedding has factored out into a clean direction.</p>
-<div class="callout callout-style-default callout-note callout-titled" title="The cleaner test, which I haven't run">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>The cleaner test, which I haven’t run
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>If this hypothesis is right, then probing mass <em>with disambiguating context</em> should rescue the result. For each entity, instead of just the bare token, use a prompt like <code>"The mass of a typical {entity} is"</code> and probe the residual at the final token. The model is then forced to think about mass, not entity identity, so the magnitude representation should be cleaner. Same trick should help length too. I’ll come back to this.</p>
-</div>
-</div>
-</section>
-<section id="what-it-tells-you-about-llm-physics-intuition" class="level2">
-<h2 class="anchored" data-anchor-id="what-it-tells-you-about-llm-physics-intuition">What it tells you about LLM “physics intuition”</h2>
-<p>A claim you sometimes see: large language models have learned a coherent physical world model from text. Whatever else this means, it would have to include something like a shared magnitude axis — knowing that “galactic” things are big in both length and mass, that “atomic” things are small in both, that “millennial” describes long times.</p>
-<p>This experiment is the smallest possible test of that claim, and the result is: GPT-2 small has built a clean axis for <em>time</em> but not for <em>length</em> or <em>mass</em>. The unit-agnostic “small to big” axis is at best very weakly present (combined <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.26"> across 45 entities), and the per-category transfer is mostly negative.</p>
-<p>I want to be careful about how much weight this puts on the negative claim. The test uses unembellished token embeddings, no context, and a small entity list. It tests whether the LLM has the axes “for free”, at the very first layer. Almost certainly:</p>
-<ul>
-<li>A bigger model would do better. Pythia-1.4B and Llama would have more capacity to factor magnitude out from category.</li>
-<li>A model probed with context would do better. The “mass of an elephant” context steers the residual stream toward representing mass specifically.</li>
-<li>A model probed later in the network would do better. By layer 12 the transformer has integrated context with the token; that probably combines “this is an elephant” + relevant magnitude knowledge.</li>
-</ul>
-<p>So the right summary is: <strong>at the embedding layer, GPT-2 has built a clean log-time axis but has not factored magnitude out from length-related and mass-related token semantics</strong>. The model has time-scale intuition more readily than length-scale or mass-scale intuition, because temporal nouns in English happen to form a clean one-dimensional ladder.</p>
-</section>
-<section id="a-specific-prediction-and-the-test" class="level2">
-<h2 class="anchored" data-anchor-id="a-specific-prediction-and-the-test">A specific prediction — and the test</h2>
-<p>The hypothesis above predicts that contextualised probing should rescue length and mass. If I prompt <code>"The mass of a typical {entity} is about"</code> instead of feeding the bare entity word, then by the time the residual stream reaches the last token (<code>"about"</code>), the model has been told what quantity to think about. The magnitude information that was hiding behind category should now surface on a probe-friendly direction.</p>
-<p>To test, I re-ran the experiment with context. For each category, the prompt template is <code>"The {size|duration|mass} of a typical {entity} is about"</code>, and I probe the residual stream at the last token, across all layers.</p>
-<div class="callout callout-style-default callout-important callout-titled" title="Prediction confirmed">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Important</span>Prediction confirmed
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Going from bare-token probing to contextualised probing, the mass R² jumps from <strong>0.45 to 0.84</strong> (best layer). Time goes from 0.88 to 0.95. Length from 0.30 to 0.48. The model <em>has</em> the magnitude information; the bare token just doesn’t store it on a probe-friendly direction.</p>
-</div>
-</div>
-<div id="fig-physics-context" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-physics-context-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="https://hli1234.github.io/probing-small-lms/posts/physics_axes/probe_gpt2_physics_context.png" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-physics-context-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;2: Layer-by-layer leave-one-out R² for <img src="https://latex.codecogs.com/png.latex?%5Clog_%7B10%7D(%5Ctext%7BSI%20value%7D)">, in two conditions: bare entity token (blue) versus contextualised prompt at the last token (red). For all three categories, contextualised probing reaches a higher peak R². The largest jump is for mass (0.45 → 0.84), confirming that the bare token was hiding magnitude behind semantic category. The layer profile is also informative: bare-token time peaks at layer 2 (embedding-level info), while contextualised probes peak near the final layer (context integration).
-</figcaption>
-</figure>
-</div>
-<p>The layer profile of each curve tells a small mechanistic story:</p>
-<ul>
-<li><strong>Bare time</strong> peaks at <em>layer 2</em> and gradually declines through later layers — the magnitude information sits in the embedding itself and gets diluted by subsequent processing. The temporal ladder really is built into how the tokenizer/embedding handles these words.</li>
-<li><strong>Contextualised time, length, and mass</strong> all peak at the <em>final layer</em> (or close to it). The context-driven magnitude representation is built up across the network, not present at the embedding.</li>
-<li><strong>Bare mass</strong> rises from <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.03"> at layer 0 to <img src="https://latex.codecogs.com/png.latex?0.45"> at layer 9 before falling back. Even without context, the transformer recovers some mass-magnitude representation by mid-network — though much less than with context.</li>
-</ul>
-<p>The cleanest summary: GPT-2 has rich physical-magnitude knowledge across all three categories, but only time stores it <em>at the embedding layer</em>. Length and mass require context-driven processing through the layers to extract their magnitude information. The asymmetry was real, but the right diagnosis isn’t “the model doesn’t know” — it’s “the model knows but needs the right question to surface it”.</p>
-</section>
-<section id="whats-next" class="level2">
-<h2 class="anchored" data-anchor-id="whats-next">What’s next</h2>
-<p>With the context-rescue result in hand, the obvious follow-ups shift:</p>
-<p><strong>Dimensional analysis.</strong> Does GPT-2 have a “units” axis? For prompts like <code>"velocity has units of"</code>, can it predict the right answer? Can the model distinguish <code>m/s</code> (a velocity) from <code>m·s</code> (a strange quantity) in its internal representations? A probe along the lines of “given the residual stream, can you predict the dimensional formula?” would test the model’s grasp of unit composition.</p>
-<p><strong>Order-of-magnitude estimation.</strong> Standard Fermi questions (“How many piano tuners are there in Chicago?”) test the model’s ability to multiply rough estimates in head. If the integer-multiplication shortcut work I did earlier extends, the model should handle these via log-axis addition.</p>
-<p><strong>Scale-ladder representation across modalities.</strong> If we could combine text + image embeddings (e.g., in CLIP or a multimodal LLM), is there a “scale” axis that lines up across <code>image of atom</code> and <code>image of galaxy</code>? The conjecture: in a model trained on enough multimodal data, yes, because images come with implicit scale cues (microscope, telescope, etc.).</p>
-<p><strong>Test the linguistic-ladder hypothesis directly.</strong> Take a bunch of abstract concept categories where the words <em>do</em> form a clean ladder (temperature: <code>cold</code>, <code>cool</code>, <code>warm</code>, <code>hot</code>, <code>boiling</code>; speed: <code>slow</code>, <code>crawling</code>, <code>walking</code>, <code>running</code>, <code>sprinting</code>, <code>flying</code>). The probe should work cleanly on these for the same reason it worked on time. Categories without a ladder (length, mass) should fail. This isolates the linguistic mechanism.</p>
-</section>
-<section id="code" class="level2">
-<h2 class="anchored" data-anchor-id="code">Code</h2>
-<ul>
-<li><code>probe_gpt2_physics.py</code> — bare-token experiment.</li>
-<li><code>probe_gpt2_physics_context.py</code> — contextualised experiment, with the layer-by-layer comparison.</li>
-</ul>
-<p>Both reproduce in about a minute on CPU.</p>
-<hr>
-<p><em>The “GPT-2 knows physics” narrative needs a careful unpacking. The model has </em>all three* magnitude axes when you ask in the right way (<img src="https://latex.codecogs.com/png.latex?R%5E2%20%5Cin%20%5B0.48,%200.95%5D">). But only time has its magnitude stored right at the embedding ladder. Length and mass require the network to do context-driven work across many layers to extract the same information. The takeaway for probing methodology: a negative result from bare-token probing tells you about the embedding, not about the model’s knowledge.*</p>
-
-
-<!-- -->
-
-</section>
-
- ]]></description>
-  <category>interpretability</category>
-  <category>physics</category>
-  <category>language models</category>
-  <guid>https://hli1234.github.io/probing-small-lms/posts/physics_axes/</guid>
-  <pubDate>Mon, 06 May 2024 07:00:00 GMT</pubDate>
-</item>
-<item>
-  <title>Looking for the log-multiplication trick inside a small language model</title>
-  <dc:creator>Huangxing Li</dc:creator>
-  <link>https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<section id="the-question" class="level2">
-<h2 class="anchored" data-anchor-id="the-question">The question</h2>
-<p>For three centuries before the pocket calculator, engineers multiplied with slide rules. The slide rule is a physical implementation of one identity:</p>
-<p><span id="eq-shortcut"><img src="https://latex.codecogs.com/png.latex?%0Aa%20%5Ccdot%20b%20=%202%5E%7B%5Clog_2%20a%20+%20%5Clog_2%20b%7D%0A%5Ctag%7B1%7D"></span></p>
-<p>Three lookups and an addition, instead of a multiplication. The trick rests on a different <em>geometry</em> of number — positions on the slide rule are spaced by <img src="https://latex.codecogs.com/png.latex?%5Clog_2">, not by raw magnitude, so adding two distances corresponds to multiplying the underlying values.</p>
-<p>Does a neural network ever discover this geometry? If you train a model to predict text and it sees enough numbers, does it secretly learn the slide rule?</p>
-<p>There’s a longer plan in <a href="experiment1.md"><code>experiment1.md</code></a> to train a fresh tiny Transformer from scratch under capacity pressure and dissect it — Anthropic-style mechanistic interpretability. That’s weeks of work. This post is the parallel and cheaper question: <strong>is the shortcut already sitting inside an existing small language model?</strong></p>
-<p>To find out, I poked at GPT-2 small (the 124M-parameter model from 2019) and Pythia-160M (a more modern but similarly-sized model) with two tools: linear probes (a regression that reads a value off the residual stream) and activation patching (an intervention that surgically changes one direction in the residual stream and watches what happens downstream).</p>
-<div class="callout callout-style-default callout-note callout-titled" title="Summary in one figure">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Note</span>Summary in one figure
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<div id="fig-summary" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-summary-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/summary_figure.png" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-summary-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;1: Six panels covering three models (GPT-2 small / Pythia-70M / Pythia-160M). <strong>A:</strong> Embedding log-axis decodability in all three. Log dominates only under weight tying; untied Pythia models prefer linear by a hair. <strong>B:</strong> GPT-2 <em>does</em> compute <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> at the equals-sign at <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989"> — but on a different axis than the one used to read the operands. <strong>C:</strong> New result. Patching along that fresh answer-side direction moves the LM head’s argmax with slope only <img src="https://latex.codecogs.com/png.latex?0.07"> — the probe is correlational, not causal. <strong>D:</strong> LM-head log-axis fraction collapses to baseline once weights are untied, so GPT-2’s “28× baseline” was mostly architectural. <strong>E:</strong> Near-miss slope <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> is invariant at ~0.22 across all three models, even as panels A and D vary by orders of magnitude. <strong>F:</strong> synthesis.
-</figcaption>
-</figure>
-</div>
-</div>
-</div>
-</section>
-<section id="a-simple-model-first-when-should-a-learner-discover-the-shortcut" class="level2">
-<h2 class="anchored" data-anchor-id="a-simple-model-first-when-should-a-learner-discover-the-shortcut">A simple model first: when <em>should</em> a learner discover the shortcut?</h2>
-<p>Before touching real models I built a toy that makes the cost-pressure hypothesis quantitative. Two paths can compute <img src="https://latex.codecogs.com/png.latex?z%20=%20a%20%5Ccdot%20b">:</p>
-<ul>
-<li><strong>Direct multiplication</strong>, with cost <img src="https://latex.codecogs.com/png.latex?c_%7B%5Cmathrm%7Bmul%7D%7D(a,%20b)%20=%20%5Clog_2(a)%20%5Ccdot%20%5Clog_2(b)"> — bit × bit schoolbook work. <img src="https://latex.codecogs.com/png.latex?2%20%5Ctimes%202"> is one bit times one bit; <img src="https://latex.codecogs.com/png.latex?1024%20%5Ctimes%20512"> is ten bits times nine.</li>
-<li><strong>The log–sum–exp shortcut</strong>, with cost <img src="https://latex.codecogs.com/png.latex?c_%7B%5Cmathrm%7Bshort%7D%7D%20=%206"> — three primitive operations, independent of operand size.</li>
-</ul>
-<p>A learnable gate <img src="https://latex.codecogs.com/png.latex?p%20%5Cin%20%5B0,%201%5D"> reads <img src="https://latex.codecogs.com/png.latex?(%5Clog_2%20a,%20%5Clog_2%20b)"> and picks how much shortcut to use. The expected total cost at penalty weight <img src="https://latex.codecogs.com/png.latex?%5Clambda"> is</p>
-<p><span id="eq-cost"><img src="https://latex.codecogs.com/png.latex?%0AC(p,%20a,%20b,%20%5Clambda)%20=%20(1-p)%5Ccdot%20%5Clambda%20%5Ccdot%20c_%7B%5Cmathrm%7Bmul%7D%7D(a,%20b)%20+%20p%20%5Ccdot%20c_%7B%5Cmathrm%7Bshort%7D%7D.%0A%5Ctag%7B2%7D"></span></p>
-<p>Sweep <img src="https://latex.codecogs.com/png.latex?%5Clambda">. The aggregate probability of taking the shortcut traces a smooth sigmoid. The interesting geometry is in which <img src="https://latex.codecogs.com/png.latex?(a,%20b)"> pairs switch first — hard ones do, easy ones hold out, and trivial ones (those involving <img src="https://latex.codecogs.com/png.latex?1">) never switch, because <img src="https://latex.codecogs.com/png.latex?%5Clog_2(1)%20=%200"> makes direct multiplication genuinely free.</p>
-<div id="fig-toy-routing" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-toy-routing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/reasoning_path_vs_penalty.png" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-toy-routing-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;2: Toy soft-routing model under varying multiplication-penalty weight <img src="https://latex.codecogs.com/png.latex?%5Clambda">. <strong>Top:</strong> average shortcut probability across <img src="https://latex.codecogs.com/png.latex?(a,%20b)%20%5Cin%20%5B1,%2064%5D%5E2">. The trained gate matches the analytical softmin to three decimal places. <strong>Bottom:</strong> per-pair gate at five snapshot <img src="https://latex.codecogs.com/png.latex?%5Clambda"> values; the decision boundary sweeps from upper-right (hard pairs) to lower-left (easy pairs) as the penalty grows.
-</figcaption>
-</figure>
-</div>
-<p>This isn’t itself a finding. It’s a yardstick — the routing geometry predicted by the simplest possible cost-cutter. The empirical question is whether real language models trained on text, not on multiplication, show even a faint trace of this geometry.</p>
-</section>
-<section id="how-gpt-2-represents-numbers" class="level2">
-<h2 class="anchored" data-anchor-id="how-gpt-2-represents-numbers">How GPT-2 represents numbers</h2>
-<p>To check what a model has internalised about integers, take the residual stream — the model’s internal scratchpad at each layer — at the position of a number token, and ask: can a linear regression predict <img src="https://latex.codecogs.com/png.latex?%5Clog_2(x)"> from it? If yes, the model has a “log of this number” axis at that layer.</p>
-<p>I fed GPT-2 small the integers 2 through 1023, each as <code>" 5"</code>, <code>" 17"</code>, <code>" 1024"</code>, etc. Most are single BPE tokens. At every layer I extracted the residual stream and trained a ridge probe for <img src="https://latex.codecogs.com/png.latex?%5Clog_2(x)"> and several controls.</p>
-<p><strong>At the very first layer — the raw token embedding, before any transformer block has run — <img src="https://latex.codecogs.com/png.latex?%5Clog_2(x)"> is decodable at <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.95"> on held-out integers.</strong> Raw <img src="https://latex.codecogs.com/png.latex?x"> is also decodable, but worse, at <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.77">. Shuffled labels (a noise control) give <img src="https://latex.codecogs.com/png.latex?R%5E2%20%5Capprox%200">. So the embedding prefers the log shape.</p>
-<p>To confirm the axis is really log-shaped and not just “any monotone function of <img src="https://latex.codecogs.com/png.latex?x">”, I swept the power-law family <img src="https://latex.codecogs.com/png.latex?x%5E%5Calpha">. Decodability peaks right around <img src="https://latex.codecogs.com/png.latex?%5Calpha%20=%200"> — the log limit. If GPT-2 stored linear magnitude the peak would sit at <img src="https://latex.codecogs.com/png.latex?%5Calpha%20=%201">. It doesn’t.</p>
-<p>What’s more surprising is what <em>else</em> the embedding stores. Parity is decodable at <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.94">. Last digit (<img src="https://latex.codecogs.com/png.latex?x%20%5Cbmod%2010">) at <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.92">. GPT-2 has noticed, just from reading text, that <code>" 5"</code>, <code>" 15"</code>, <code>" 25"</code> all share the feature of ending in <code>5</code>. Ask the same probe for <code>"is x divisible by 7?"</code> and the <img src="https://latex.codecogs.com/png.latex?R%5E2"> is essentially zero. Same for <code>"is x prime?"</code>. The embedding has structure for the things a careful reader of natural language might track — size, parity, last digit — and ignores number-theory properties that show up too rarely in text to matter.</p>
-<div id="fig-controls" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-controls-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_controls.png" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-controls-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;3: Linear-probe <img src="https://latex.codecogs.com/png.latex?R%5E2"> at each layer for monotone targets, non-monotone targets, and a noise baseline. The log axis, parity, and last digit are all decodable at the embedding (<img src="https://latex.codecogs.com/png.latex?R%5E2%20%3E%200.9">). Number-theoretic properties (mod 7, primality) and the shuffle control are at chance.
-</figcaption>
-</figure>
-</div>
-<section id="does-this-generalise-across-categories-of-numbers" class="level3">
-<h3 class="anchored" data-anchor-id="does-this-generalise-across-categories-of-numbers">Does this generalise across categories of numbers?</h3>
-<p>A natural question: does the integer log axis carry over to other numeric tokens — years like <code>" 1990"</code>, round numbers like <code>" 1000"</code>, number-words like <code>" million"</code>? A simple model says yes: GPT-2 has one shared magnitude axis for everything numeric.</p>
-<p>The data says no, decisively. Apply the integer-trained probe to:</p>
-<ul>
-<li>152 single-token years from <img src="https://latex.codecogs.com/png.latex?%5B1500,%202099%5D"> → <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%20-2274">. The readouts are nearly constant regardless of which year you feed in. The integer axis can’t distinguish 1500 from 2099 at all.</li>
-<li>33 single-token round numbers (multiples of 100 up to 100 000) → <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.22">. Weak positive transfer.</li>
-<li>24 single-token English number-words (“one”…“twenty”, “hundred”, “thousand”, “million”, “billion”) → <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.14">.</li>
-</ul>
-<div id="fig-shared-axis" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-shared-axis-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_shared_axis.png" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-shared-axis-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;4: The integer-trained log probe applied to other numeric categories. Integers (training) sit cleanly on <img src="https://latex.codecogs.com/png.latex?y%20=%20x">. Years, round numbers, and number-words sit far off the line. Each numeric category lives on its own axis in embedding space; there is no universal magnitude direction.
-</figcaption>
-</figure>
-</div>
-<p>This tells you something about how GPT-2 represents numbers. The token <code>" 1990"</code> is encoded primarily as “a year” — its role in text — and only weakly as “the number 1990”. The model’s representation is role-dependent, not value-dependent. A probe trained on integers reads years as nonsense.</p>
-</section>
-</section>
-<section id="does-the-log-axis-actually-do-anything" class="level2">
-<h2 class="anchored" data-anchor-id="does-the-log-axis-actually-do-anything">Does the log axis actually do anything?</h2>
-<p>Decodability is a correlational fact. To test whether the model <em>uses</em> the log axis when it multiplies, I ran activation patching at the operand token.</p>
-<p>Take a prompt like <code>" 5 * 9 ="</code>. The model processes it normally. At the position where <code>" 5"</code> sits, the embedding’s projection onto the probe direction <img src="https://latex.codecogs.com/png.latex?w"> reads <img src="https://latex.codecogs.com/png.latex?%5Clog_2(5)%20%5Capprox%202.3">. I add a rank-1 vector along <img src="https://latex.codecogs.com/png.latex?w"> so that projection now reads <img src="https://latex.codecogs.com/png.latex?%5Clog_2(2)%20=%201">. Everything else about the embedding stays the same — same parity, same last-digit, same noise. Then I let the model run the full 12 layers and ask: which numeric token does the next-token distribution prefer?</p>
-<p>For <code>" 5 * 9 ="</code>, patching <img src="https://latex.codecogs.com/png.latex?%5Clog_2(5)%20%5Cto%20%5Clog_2(2)"> makes the logit for <code>" 18"</code> (= <img src="https://latex.codecogs.com/png.latex?2%20%5Ccdot%209">) rise <em>above</em> the logit for <code>" 45"</code> (= <img src="https://latex.codecogs.com/png.latex?5%20%5Ccdot%209">). The model has been talked into preferring the patched product. Patching toward <img src="https://latex.codecogs.com/png.latex?4"> makes <code>" 36"</code> win. Patching toward <img src="https://latex.codecogs.com/png.latex?5"> does nothing, as it should. And — the critical control — patching along five different random directions of equal magnitude to <img src="https://latex.codecogs.com/png.latex?w"> gives logit shifts indistinguishable from zero. The effect is specific to the probe direction.</p>
-<p>The effect is also <em>asymmetric</em>. Patching downward (toward smaller numbers) works cleanly. Patching upward (toward larger numbers) only partly works. Most plausible explanation: the LM head has a strong frequency prior favouring small, common numbers in text. A fixed-size patch is enough to push preference toward smaller numbers (with the prior) but not enough to push it toward larger numbers (against the prior).</p>
-<div id="fig-patching" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-patching-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_patching.png" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-patching-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;5: Causal patching at the operand position. <strong>Left:</strong> change in relative logit, <img src="https://latex.codecogs.com/png.latex?%5Cmathrm%7Blogit%7D(a_%7B%5Cmathrm%7Btarget%7D%7D%20%5Ccdot%20b)%20-%20%5Cmathrm%7Blogit%7D(a%20%5Ccdot%20b)">, as we patch the log direction at the <code>" a"</code> position. Solid lines are the log direction; dotted lines are random directions of the same norm. <strong>Right:</strong> heatmap of relative logits for <code>" 5 * 9 ="</code>. The yellow most-favoured-product stripe follows the perfect-log-shortcut line <img src="https://latex.codecogs.com/png.latex?p%20=%20a_%7B%5Cmathrm%7Btarget%7D%7D%20%5Ccdot%20b"> for downward patches, then sticks at 45 once we patch toward larger numbers.
-</figcaption>
-</figure>
-</div>
-</section>
-<section id="does-the-model-actually-compute-logab" class="level2">
-<h2 class="anchored" data-anchor-id="does-the-model-actually-compute-logab">Does the model actually compute log(a·b)?</h2>
-<p>This is the test I most wanted to run.</p>
-<p>If the model does the slide-rule trick — adds the operand logs and then exponentiates at the end — then at the position of the <code>=</code> sign, the residual stream right before the LM head should be carrying <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)">. The operand-side log direction <img src="https://latex.codecogs.com/png.latex?w"> ought to read off this value.</p>
-<p>I checked. For <code>" 5 * 9 ="</code>, the operand-side probe at <code>=</code> reads off <strong>10.76</strong> — not <img src="https://latex.codecogs.com/png.latex?%5Clog_2(45)%20%5Capprox%205.49">. For <code>" 3 * 7 ="</code> it reads <strong>11.17</strong>, not <img src="https://latex.codecogs.com/png.latex?%5Clog_2(21)%20%5Capprox%204.39">. Across nine different prompts, the readout is essentially flat. The <img src="https://latex.codecogs.com/png.latex?R%5E2"> of “what the operand-axis probe reads at <code>=</code>” against “the true <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)">” is <strong>0.011</strong> — no signal.</p>
-<p>My first reaction was that the circuit isn’t there. The shortcut exists on the input side, but the model isn’t wiring it together.</p>
-<p>Then it occurred to me: maybe the model uses a <em>different</em> direction at the <code>=</code> position to write down the answer’s log than the one it uses to read the operands’ logs. There’s no architectural reason those have to be the same vector — the model can translate between representations as it computes. So I trained a fresh ridge probe directly on the residual at <code>=</code>, against <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> for several hundred random <img src="https://latex.codecogs.com/png.latex?(a,%20b)"> pairs.</p>
-<div class="callout callout-style-default callout-important callout-titled" title="The key result">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Important</span>The key result
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>The new probe predicts the answer’s log at <strong><img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989"></strong> on held-out <img src="https://latex.codecogs.com/png.latex?(a,%20b)"> pairs. The model has computed <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)">. It’s there. It’s almost perfectly linearly decodable from the residual stream right before the LM head. I had simply been looking on the wrong axis.</p>
-</div>
-</div>
-<p>So the picture is this. The operands’ logs are written down on one axis at the input. Somewhere in the middle layers, the model adds them and rewrites the result on a <em>different</em> axis at the <code>=</code> position. The LM head then reads that second axis to decide what number comes next. The whole <img src="https://latex.codecogs.com/png.latex?%5Clog%20%5Cto%20%5Cmathrm%7Bsum%7D%20%5Cto%20%5Cexp"> machine is sitting in GPT-2 small.</p>
-<div id="fig-pipeline" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_pipeline.png" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-pipeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;6: The end-to-end pipeline. <strong>Left:</strong> patching the log component at the <code>=</code> position of real prompts; argmax over numeric tokens is stuck at <code>" 1"</code> regardless of <img src="https://latex.codecogs.com/png.latex?v_%7B%5Cmathrm%7Btarget%7D%7D">. <strong>Middle:</strong> the operand-side probe’s readout at <code>=</code> is roughly constant (<img src="https://latex.codecogs.com/png.latex?%5Csim%2010.8">) across all prompts, uncorrelated with <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> (<img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.011">). <strong>Right:</strong> a fresh probe trained directly on residuals at <code>=</code> predicts <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> at <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989"> on held-out pairs.
-</figcaption>
-</figure>
-</div>
-<section id="a-correction-the-answer-side-direction-is-correlational-not-causal" class="level3">
-<h3 class="anchored" data-anchor-id="a-correction-the-answer-side-direction-is-correlational-not-causal">A correction: the answer-side direction is correlational, not causal</h3>
-<p>The <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989"> number is striking enough that I should ask whether the direction the probe found is actually the one the model <em>uses</em>, rather than some downstream feature that <em>correlates</em> with <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)">. That’s the classic correlation-vs-causation issue with linear probes, sometimes called the “probing illusion”.</p>
-<p>The clean way to test causation: take the fitted answer-side direction <img src="https://latex.codecogs.com/png.latex?w_%7B%5Cmathrm%7Bans%7D%7D">, then for various <img src="https://latex.codecogs.com/png.latex?v_%7B%5Cmathrm%7Btarget%7D%7D">, patch the residual at <code>=</code> so the projection onto <img src="https://latex.codecogs.com/png.latex?w_%7B%5Cmathrm%7Bans%7D%7D"> equals <img src="https://latex.codecogs.com/png.latex?v_%7B%5Cmathrm%7Btarget%7D%7D">, apply the LM head, and check whether the argmax over numeric tokens tracks <img src="https://latex.codecogs.com/png.latex?2%5E%7Bv_%7B%5Cmathrm%7Btarget%7D%7D%7D">.</p>
-<p>If the model uses this direction, the LM head’s argmax should follow <img src="https://latex.codecogs.com/png.latex?2%5E%7Bv_%7B%5Cmathrm%7Btarget%7D%7D%7D"> — slope 1 on a log-log plot. If it merely <em>correlates</em> with <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)">, patching it should move nothing.</p>
-<p>The result: <strong>slope <img src="https://latex.codecogs.com/png.latex?0.072">, not 1</strong>. For most prompts the argmax over numeric tokens doesn’t change at all across an 11-log-unit sweep. The LM head clearly doesn’t read this direction. The 0.989 R² says <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> is <em>encoded</em> there — but probably as a downstream consequence of whatever the model is actually doing, not because the LM head reads it.</p>
-<div class="callout callout-style-default callout-warning callout-titled" title="Honest revision">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Warning</span>Honest revision
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>The original write-up of this experiment claimed the pipeline was “wired up” because the answer’s log was decodable at <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989">. The causal test shows that’s overclaiming. The decodability is real, but the LM head doesn’t act on that specific direction. The right summary is: <strong>the model has computed something equivalent to <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> somewhere in its residual stream at <code>=</code>, but the LM head’s actual choice of next token is driven by other directions.</strong> What those directions encode, and how they relate to the operand-side log axis, is still open.</p>
-</div>
-</div>
-<div id="fig-answer-side-causal" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-answer-side-causal-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_answer_side_causal.png" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-answer-side-causal-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;7: Patching along the fitted answer-side direction <img src="https://latex.codecogs.com/png.latex?w_%7B%5Cmathrm%7Bans%7D%7D"> at the <code>=</code> position. <strong>Left:</strong> for each of eight multiplication prompts, <img src="https://latex.codecogs.com/png.latex?%5Clog_2"> of the LM head’s argmax-numeric vs the injected <img src="https://latex.codecogs.com/png.latex?v_%7B%5Cmathrm%7Btarget%7D%7D">. Compared to the dashed reference <img src="https://latex.codecogs.com/png.latex?y%20=%20v_%7B%5Cmathrm%7Btarget%7D%7D">, the curves are essentially flat — the LM head doesn’t read this direction. <strong>Right:</strong> rank of the closest single-token integer to <img src="https://latex.codecogs.com/png.latex?2%5E%7Bv_%7B%5Cmathrm%7Btarget%7D%7D%7D"> among all numeric tokens. The target never ends up at rank 0; it bottoms around 100-300 out of 638 numeric tokens.
-</figcaption>
-</figure>
-</div>
-</section>
-</section>
-<section id="two-more-checks-was-the-other-finding-real-or-an-artifact" class="level2">
-<h2 class="anchored" data-anchor-id="two-more-checks-was-the-other-finding-real-or-an-artifact">Two more checks: was the other finding real or an artifact?</h2>
-<p>The <img src="https://latex.codecogs.com/png.latex?0.989"> number is striking enough that I want to ask twice. Two follow-ups, both quantitative.</p>
-<section id="check-1-does-the-lm-head-act-on-the-log-axis" class="level3">
-<h3 class="anchored" data-anchor-id="check-1-does-the-lm-head-act-on-the-log-axis">Check 1 — does the LM head act on the log axis?</h3>
-<p>The LM head’s row for each numeric token is what gets dotted with the residual stream to produce the next-token logit. If the log axis matters for output, those rows should have non-trivial mass on it.</p>
-<p>For GPT-2 small: the log direction captures 3.6% of each numeric LM-head row’s squared norm on average, versus <img src="https://latex.codecogs.com/png.latex?1/d%20=%200.13%5C%25"> for a random direction — about <img src="https://latex.codecogs.com/png.latex?28%5Ctimes"> the isotropic baseline.</p>
-<p>But there’s a catch. GPT-2 ties its LM head to its embedding, so the LM head row for token <code>" 5"</code> is <em>literally</em> the same vector as the embedding of <code>" 5"</code>. The “alignment” of LM head with log axis is automatic, not emergent. To separate “tying” from “emergent alignment”, I re-ran the analysis on two more models with untied weights — <strong>Pythia-70M</strong> and <strong>Pythia-160M</strong>:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 8%">
-<col style="width: 13%">
-<col style="width: 8%">
-<col style="width: 33%">
-<col style="width: 35%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Model</th>
-<th>Hidden <img src="https://latex.codecogs.com/png.latex?d"></th>
-<th>Tied?</th>
-<th>LM-head log-axis fraction</th>
-<th>Multiple of <img src="https://latex.codecogs.com/png.latex?1/d"> baseline</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>GPT-2 small (124M)</td>
-<td>768</td>
-<td>tied</td>
-<td>3.6%</td>
-<td><strong>28×</strong></td>
-</tr>
-<tr class="even">
-<td>Pythia-70M</td>
-<td>512</td>
-<td>untied</td>
-<td>0.19%</td>
-<td><strong>1.0×</strong></td>
-</tr>
-<tr class="odd">
-<td>Pythia-160M</td>
-<td>768</td>
-<td>untied</td>
-<td>0.01%</td>
-<td><strong>0.1×</strong></td>
-</tr>
-</tbody>
-</table>
-<p>Without weight tying, the LM head doesn’t independently align with the integer-embedding log axis. The underlying log axis is real (decodable at <img src="https://latex.codecogs.com/png.latex?R%5E2%20%5Capprox%200.89"> in both Pythia embeddings too — see panel A of Figure&nbsp;1), but the LM head doesn’t inherit it for free when weights are untied. The “28× baseline” number for GPT-2 was largely an artifact of weight tying.</p>
-<div id="fig-lmhead" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-lmhead-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_lmhead.png" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-lmhead-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;8: LM-head log-axis decomposition for GPT-2 small. The 3.6% number averaged over numeric tokens is real, but the comparison with Pythia (see panel C of Figure&nbsp;1) shows most of that comes from weight tying.
-</figcaption>
-</figure>
-</div>
-</section>
-<section id="check-2-does-the-log-axis-pull-on-the-actual-output-distribution" class="level3">
-<h3 class="anchored" data-anchor-id="check-2-does-the-log-axis-pull-on-the-actual-output-distribution">Check 2 — does the log axis pull on the actual output distribution?</h3>
-<p>The behavioural test. For 200 random multiplication prompts <img src="https://latex.codecogs.com/png.latex?(a,%20b)%20%5Cin%20%5B2,%2050)%5E2">, I look at the model’s next-token distribution restricted to numeric tokens, and fit a simple log-Gaussian:</p>
-<p><span id="eq-gauss"><img src="https://latex.codecogs.com/png.latex?%0AP(%5Ctext%7Bpredict%20%7D%20n%20%5Cmid%20a,%20b)%20%5Cpropto%20%5Cexp%5C!%5Cleft(-%5Cfrac%7B(%5Clog_2%20n%20-%20%5Cmu)%5E2%7D%7B2%5Csigma%5E2%7D%5Cright).%0A%5Ctag%7B3%7D"></span></p>
-<p>If the log circuit drives output, <img src="https://latex.codecogs.com/png.latex?%5Cmu%20%5Capprox%20%5Clog_2(a%20%5Ccdot%20b)"> and <img src="https://latex.codecogs.com/png.latex?%5Csigma"> shrinks with confidence. If the log axis is ignored, <img src="https://latex.codecogs.com/png.latex?%5Cmu"> has no relation to the true log.</p>
-<p>The result sits between these. Across 200 prompts:</p>
-<ul>
-<li><img src="https://latex.codecogs.com/png.latex?0/200"> argmaxes are correct (GPT-2 small really can’t multiply).</li>
-<li>Fitted <img src="https://latex.codecogs.com/png.latex?%5Cmu"> is biased <img src="https://latex.codecogs.com/png.latex?%5Cmathbf%7B-3.25%7D"> log-units <em>below</em> the true <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> on average. The model predicts numbers about <img src="https://latex.codecogs.com/png.latex?2%5E%7B3.25%7D%20%5Capprox%209.5%5Ctimes"> smaller than the right answer.</li>
-<li>But the slope of <img src="https://latex.codecogs.com/png.latex?%5Cmu"> vs <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> across prompts is <img src="https://latex.codecogs.com/png.latex?%5Cboldsymbol%7B%5Cbeta%20=%200.22%7D">. Not 1 (perfect readout), not 0 (no readout), but a clear positive coupling.</li>
-</ul>
-<p>Repeating the experiment on Pythia-70M gives <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%200.22"> — same as GPT-2. On Pythia-160M I get <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%200.19">. Across three models with very different LM-head geometries (4 orders of magnitude apart in their log-axis fraction), <strong>the behavioural pull on output is the same</strong>: about 22% of what a clean readout would produce. The slope <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20%5Capprox%0A0.22"> looks like a property of the cost-sensitive output distribution the models share, not of how their LM heads happen to align with integer-embedding directions.</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Model</th>
-<th>LM-head log-axis fraction</th>
-<th>Near-miss <img src="https://latex.codecogs.com/png.latex?%5Cbeta"></th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>GPT-2 small</td>
-<td>3.6% (28× baseline)</td>
-<td>0.22</td>
-</tr>
-<tr class="even">
-<td>Pythia-70M</td>
-<td>0.19% (1.0× baseline)</td>
-<td>0.22</td>
-</tr>
-<tr class="odd">
-<td>Pythia-160M</td>
-<td>0.01% (0.1× baseline)</td>
-<td>0.19</td>
-</tr>
-</tbody>
-</table>
-<div id="fig-near-miss" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-near-miss-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/probe_gpt2_near_miss.png" class="img-fluid figure-img">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-near-miss-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;9: Near-miss arithmetic for GPT-2. <strong>Left:</strong> fitted mean log of the predicted distribution vs true <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)">. The mean predicted log tracks the true log with slope <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%200.22">, biased about 3 units below the <img src="https://latex.codecogs.com/png.latex?y%20=%20x"> line. <strong>Middle:</strong> fitted spread <img src="https://latex.codecogs.com/png.latex?%5Csigma"> is roughly constant at <img src="https://latex.codecogs.com/png.latex?%5Csim%201.9"> log-units. <strong>Right:</strong> three example predicted distributions; dotted vertical lines mark the true <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)">.
-</figcaption>
-</figure>
-</div>
-<p>This <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%200.22"> ties everything together. The log circuit puts <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> in the residual stream at <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989">. The LM head acts on it to roughly 22% of what perfect readout would give, swamped by a much larger frequency prior. The machine is wired up; it just isn’t loud enough.</p>
-</section>
-</section>
-<section id="what-this-collectively-shows" class="level2">
-<h2 class="anchored" data-anchor-id="what-this-collectively-shows">What this collectively shows</h2>
-<p>Five claims, the first three robust and the last two more tentative.</p>
-<p>The embedding layer of all three models encodes integers on an approximately logarithmic axis, along with separate axes for parity and last digit. Number-theoretic properties not visible in surface text (mod 7, primality) do not get a coherent representation. The log-axis shape peaks the power-law sweep at <img src="https://latex.codecogs.com/png.latex?%5Calpha%20=%200">, but the absolute preference of log over linear is partly weight-tying dependent — GPT-2 has log <img src="https://latex.codecogs.com/png.latex?%5Cgg"> linear at the embedding, while untied Pythia models have log <img src="https://latex.codecogs.com/png.latex?%5Capprox"> linear there.</p>
-<p>Perturbations along the embedding’s log axis have structured, direction-specific causal effect on the model’s next-token predictions in multiplication prompts. Random directions of the same magnitude do not. This rules out the “probe is finding a noise direction” null hypothesis. The asymmetry of the effect (downward patches work, upward patches partly fail) points at the LM head’s frequency prior as the limiting factor.</p>
-<p>In all three models, the behavioural pull of the log axis on actual output is invariant at <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20%5Capprox%200.22"> — about 22% of what perfect log-circuit readout would give. This is true across models that differ by orders of magnitude in their LM-head log-axis alignment. So the behavioural number isn’t a function of LM-head geometry; it’s a function of how loud the output-side frequency prior is relative to whatever the log circuit contributes.</p>
-<p>A fresh probe trained on <code>=</code>-position residuals to predict <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> achieves <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989"> on held-out pairs. The model <em>has</em> computed something linearly equivalent to the answer’s log somewhere in its residual stream. But <strong>patching that direction barely moves the LM head’s argmax</strong> (slope 0.07 of perfect readout). So the direction is a downstream encoding, not the one the head actually reads. What direction the head <em>does</em> read for numeric output, and how it relates to the operand-side log axis, is the most interesting open question this work leaves.</p>
-<p>The framing-level lesson is that small language models can have mechanistically rich circuits whose behavioural effect is suppressed by the output distribution they were trained against. “Can’t do multiplication” is consistent with “has parts of the multiplication circuit”, as long as a louder competing signal is shouting “use a common number” and the probe-found directions aren’t the ones the LM head listens to.</p>
-</section>
-<section id="caveats" class="level2">
-<h2 class="anchored" data-anchor-id="caveats">Caveats</h2>
-<p>GPT-2 ties its LM head to the embedding. Much of the apparent LM head ↔︎ log axis alignment is architectural. The Pythia-160M comparison addresses this for one untied model, but a wider scan across model families would be more convincing.</p>
-<p>The causal-patching shifts are measured on relative logits among candidate products, not on argmax. Both small models get <img src="https://latex.codecogs.com/png.latex?0/200"> multiplications right. A model that can actually multiply (Pythia-1.4B, Llama-3.2-1B, Qwen-2.5-0.5B) would let the patch flip the argmax cleanly, not just shift relative logits.</p>
-<p>The fitted answer-side probe at the <code>=</code> position has <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989"> on <img src="https://latex.codecogs.com/png.latex?(a,%20b)%20%5Cin%20%5B2,%2064%5D%5E2"> pairs. Whether the same direction carries <img src="https://latex.codecogs.com/png.latex?%5Clog_2(a%20%5Ccdot%20b)"> for much larger operands is untested.</p>
-<p>The middle layers — where the operand-axis log gets translated to the answer-axis log — are a black box in this study. Path-patching across (layer, position) pairs would identify the attention heads that move log information from operand positions to the <code>=</code> position. The infrastructure for it is already in the patching code; I just didn’t run it.</p>
-</section>
-<section id="five-things-to-test-next" class="level2">
-<h2 class="anchored" data-anchor-id="five-things-to-test-next">Five things to test next</h2>
-<p><strong>Find the direction the LM head actually reads.</strong> The biggest open question raised by the answer-side causal test. The 0.989 probe is correlational; the LM head’s argmax is driven by some other direction. A sparse autoencoder or top-singular-vectors analysis of the LM-head columns for numeric tokens should expose what they actually decode.</p>
-<p><strong>Exponentiation as a sharper test.</strong> If the model uses the log axis compositionally, patching <img src="https://latex.codecogs.com/png.latex?%5Clog(a)"> by <img src="https://latex.codecogs.com/png.latex?%5CDelta"> in an <code>a^b =</code> prompt should shift the output’s log by <img src="https://latex.codecogs.com/png.latex?b%20%5Ccdot%20%5CDelta"> — a quantitative prediction with one free parameter. Same patching code, different prompts.</p>
-<p><strong>A bigger model that can actually multiply.</strong> Pythia-1.4B, Llama-3.2-1B, or Qwen-2.5-0.5B. If <img src="https://latex.codecogs.com/png.latex?%5Cbeta%20=%200.22"> is invariant across model scale, it’s a property of the training distribution, not capacity. If <img src="https://latex.codecogs.com/png.latex?%5Cbeta"> shoots up on a multiply-capable model, the limit at small scale really was “the head doesn’t act on the log axis hard enough”.</p>
-<p><strong>Path-patch to find the translation layer.</strong> Where in the network does the operand-axis log get translated to whatever ends up at <code>=</code>? The patching infrastructure here is already 80% of what’s needed.</p>
-<p><strong>Test the per-category axes.</strong> Within years, fit a year-trained log probe. Does it transfer cleanly to other years? Repeat for round numbers, number-words. If the integer-trained axis doesn’t transfer (the result above) but the within-category axes do transfer, the model has many private log axes, one per role.</p>
-</section>
-<section id="methodological-note" class="level2">
-<h2 class="anchored" data-anchor-id="methodological-note">Methodological note</h2>
-<p>If a probe trained at position A gives no signal at position B, that doesn’t mean the information isn’t in B — it might just mean B uses a different direction. Fit a fresh probe at the position you actually care about before concluding the circuit is absent. In this study, that one habit was the difference between “no circuit found” and “circuit found at <img src="https://latex.codecogs.com/png.latex?R%5E2%20=%200.989">”.</p>
-<p>The shared-axis test worked the same way in reverse: an attractive hypothesis (“there’s one universal magnitude axis for all numeric tokens”) was falsified with about twenty minutes of compute and one transfer measurement. The Pythia comparison was the same shape — running the same probe on a second model with untied weights corrected a number I would otherwise have over-interpreted. Cheap probes are how you both rescue and kill ideas.</p>
-</section>
-<section id="code" class="level2">
-<h2 class="anchored" data-anchor-id="code">Code</h2>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 37%">
-<col style="width: 62%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>File</th>
-<th>Produces</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>reasoning_router.py</code></td>
-<td>Figure&nbsp;2</td>
-</tr>
-<tr class="even">
-<td><code>probe_gpt2_log.py</code>, <code>probe_gpt2_controls.py</code></td>
-<td>Figure&nbsp;3</td>
-</tr>
-<tr class="odd">
-<td><code>probe_gpt2_shared_axis.py</code></td>
-<td>Figure&nbsp;4</td>
-</tr>
-<tr class="even">
-<td><code>probe_gpt2_patching.py</code></td>
-<td>Figure&nbsp;5</td>
-</tr>
-<tr class="odd">
-<td><code>probe_gpt2_lmhead.py</code></td>
-<td>Figure&nbsp;8</td>
-</tr>
-<tr class="even">
-<td><code>probe_gpt2_pipeline.py</code></td>
-<td>Figure&nbsp;6</td>
-</tr>
-<tr class="odd">
-<td><code>probe_gpt2_answer_side_causal.py</code></td>
-<td>Figure&nbsp;7</td>
-</tr>
-<tr class="even">
-<td><code>probe_gpt2_near_miss.py</code></td>
-<td>Figure&nbsp;9</td>
-</tr>
-<tr class="odd">
-<td><code>probe_pythia_compare.py</code>, <code>probe_pythia70_compare.py</code></td>
-<td>data for Figure&nbsp;1</td>
-</tr>
-<tr class="even">
-<td><code>make_summary_figure_v2.py</code></td>
-<td>Figure&nbsp;1</td>
-</tr>
-</tbody>
-</table>
-<p>Dependencies: <code>torch</code>, <code>transformers</code>, <code>scikit-learn</code>, <code>matplotlib</code>. The full pipeline reproduces in about 20 minutes on a laptop CPU. GPT-2 small downloads at <img src="https://latex.codecogs.com/png.latex?%5Csim%20500"> MB; Pythia-160M at <img src="https://latex.codecogs.com/png.latex?%5Csim%20320"> MB.</p>
-
-
-<!-- -->
-
-</section>
-
- ]]></description>
-  <category>interpretability</category>
-  <category>mech-interp</category>
-  <category>language models</category>
-  <category>arithmetic</category>
-  <guid>https://hli1234.github.io/probing-small-lms/posts/log_shortcut_findings/</guid>
-  <pubDate>Sun, 15 Oct 2023 07:00:00 GMT</pubDate>
 </item>
 </channel>
 </rss>

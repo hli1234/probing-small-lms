@@ -2,9 +2,9 @@
   {
     "listing": "/index.html",
     "items": [
-      "/posts/anchoring-blog/index.html",
       "/posts/physics_axes/index.html",
-      "/posts/log_shortcut_findings/index.html"
+      "/posts/log_shortcut_findings/index.html",
+      "/posts/anchoring-blog/index.html"
     ]
   }
 ]
