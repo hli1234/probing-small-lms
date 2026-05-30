@@ -1,0 +1,504 @@
+---
+title: "Looking for the log-multiplication trick inside a small language model"
+subtitle: "Where does GPT-2 keep its slide rule? A tour through linear probes, activation patching, and one large surprise."
+author:
+  - name: "Huangxing Li"
+date: "2023-10-15"
+abstract: |
+  Before pocket calculators, scientists multiplied with slide rules: look up
+  two logarithms, add them, look up an exponential. Does a language model
+  ever do the same? Using linear probes and activation patching on three
+  small language models (GPT-2 small, Pythia-70M, Pythia-160M), I find that
+  (1) the token embedding represents integer magnitude on a roughly
+  logarithmic axis ($R^2 = 0.89-0.95$); (2) perturbing this axis has
+  direction-specific causal effect on multiplication predictions, rulingß
+  out generic noise; (3) the answer's log is linearly decodable from the
+  residual stream at the equals-sign position with $R^2 = 0.989$ — but
+  patching along that direction barely moves the LM head's output (causal
+  slope 0.07), so the probe finding is correlational, not the direction
+  the model actually uses; and (4) across all three models, the behavioural
+  pull of the log axis on actual output is invariant at $\beta \approx 0.22$
+  of perfect readout, dominated by an LM-head frequency prior. The slide-rule
+  substrate exists; the head's free-will is small.
+categories: [interpretability, mech-interp, language models, arithmetic]
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    fig-cap-location: bottom
+    code-fold: true
+    code-tools: true
+    theme: cosmo
+    number-sections: false
+    highlight-style: github
+execute:
+  echo: false
+  warning: false
+---
+
+## The question
+
+For three centuries before the pocket calculator, engineers multiplied
+with slide rules. The slide rule is a physical implementation of one
+identity:
+
+$$
+a \cdot b = 2^{\log_2 a + \log_2 b}
+$$ {#eq-shortcut}
+
+Three lookups and an addition, instead of a multiplication. The trick rests
+on a different *geometry* of number — positions on the slide rule are spaced
+by $\log_2$, not by raw magnitude, so adding two distances corresponds to
+multiplying the underlying values.
+
+Does a neural network ever discover this geometry? If you train a model to
+predict text and it sees enough numbers, does it secretly learn the slide
+rule?
+
+There's a longer plan in [`experiment1.md`](experiment1.md) to train a
+fresh tiny Transformer from scratch under capacity pressure and dissect
+it — Anthropic-style mechanistic interpretability. That's weeks of work.
+This post is the parallel and cheaper question: **is the shortcut already
+sitting inside an existing small language model?**
+
+To find out, I poked at GPT-2 small (the 124M-parameter model from 2019)
+and Pythia-160M (a more modern but similarly-sized model) with two tools:
+linear probes (a regression that reads a value off the residual stream)
+and activation patching (an intervention that surgically changes one
+direction in the residual stream and watches what happens downstream).
+
+::: {.callout-note title="Summary in one figure"}
+![Six panels covering three models (GPT-2 small / Pythia-70M / Pythia-160M).
+**A:** Embedding log-axis decodability in all three. Log dominates only
+under weight tying; untied Pythia models prefer linear by a hair. **B:**
+GPT-2 *does* compute $\log_2(a \cdot b)$ at the equals-sign at
+$R^2 = 0.989$ — but on a different axis than the one used to read the
+operands. **C:** New result. Patching along that fresh answer-side
+direction moves the LM head's argmax with slope only $0.07$ — the probe
+is correlational, not causal. **D:** LM-head log-axis fraction collapses
+to baseline once weights are untied, so GPT-2's "28× baseline" was
+mostly architectural. **E:** Near-miss slope $\beta$ is invariant at
+~0.22 across all three models, even as panels A and D vary by orders of
+magnitude. **F:** synthesis.](./summary_figure.png){#fig-summary}
+:::
+
+## A simple model first: when *should* a learner discover the shortcut?
+
+Before touching real models I built a toy that makes the cost-pressure
+hypothesis quantitative. Two paths can compute $z = a \cdot b$:
+
+- **Direct multiplication**, with cost
+  $c_{\mathrm{mul}}(a, b) = \log_2(a) \cdot \log_2(b)$ — bit × bit
+  schoolbook work. $2 \times 2$ is one bit times one bit; $1024 \times 512$
+  is ten bits times nine.
+- **The log–sum–exp shortcut**, with cost $c_{\mathrm{short}} = 6$ — three
+  primitive operations, independent of operand size.
+
+A learnable gate $p \in [0, 1]$ reads $(\log_2 a, \log_2 b)$ and picks how
+much shortcut to use. The expected total cost at penalty weight $\lambda$ is
+
+$$
+C(p, a, b, \lambda) = (1-p)\cdot \lambda \cdot c_{\mathrm{mul}}(a, b) + p \cdot c_{\mathrm{short}}.
+$$ {#eq-cost}
+
+Sweep $\lambda$. The aggregate probability of taking the shortcut traces
+a smooth sigmoid. The interesting geometry is in which $(a, b)$ pairs
+switch first — hard ones do, easy ones hold out, and trivial ones (those
+involving $1$) never switch, because $\log_2(1) = 0$ makes direct
+multiplication genuinely free.
+
+![Toy soft-routing model under varying multiplication-penalty weight $\lambda$. **Top:** average shortcut probability across $(a, b) \in [1, 64]^2$. The trained gate matches the analytical softmin to three decimal places. **Bottom:** per-pair gate at five snapshot $\lambda$ values; the decision boundary sweeps from upper-right (hard pairs) to lower-left (easy pairs) as the penalty grows.](./reasoning_path_vs_penalty.png){#fig-toy-routing}
+
+This isn't itself a finding. It's a yardstick — the routing geometry
+predicted by the simplest possible cost-cutter. The empirical question is
+whether real language models trained on text, not on multiplication,
+show even a faint trace of this geometry.
+
+## How GPT-2 represents numbers
+
+To check what a model has internalised about integers, take the residual
+stream — the model's internal scratchpad at each layer — at the position
+of a number token, and ask: can a linear regression predict $\log_2(x)$
+from it? If yes, the model has a "log of this number" axis at that layer.
+
+I fed GPT-2 small the integers 2 through 1023, each as `" 5"`, `" 17"`,
+`" 1024"`, etc. Most are single BPE tokens. At every layer I extracted
+the residual stream and trained a ridge probe for $\log_2(x)$ and several
+controls.
+
+**At the very first layer — the raw token embedding, before any
+transformer block has run — $\log_2(x)$ is decodable at $R^2 = 0.95$ on
+held-out integers.** Raw $x$ is also decodable, but worse, at $R^2 = 0.77$.
+Shuffled labels (a noise control) give $R^2 \approx 0$. So the embedding
+prefers the log shape.
+
+To confirm the axis is really log-shaped and not just "any monotone
+function of $x$", I swept the power-law family $x^\alpha$. Decodability
+peaks right around $\alpha = 0$ — the log limit. If GPT-2 stored linear
+magnitude the peak would sit at $\alpha = 1$. It doesn't.
+
+What's more surprising is what *else* the embedding stores. Parity is
+decodable at $R^2 = 0.94$. Last digit ($x \bmod 10$) at $R^2 = 0.92$.
+GPT-2 has noticed, just from reading text, that `" 5"`, `" 15"`, `" 25"`
+all share the feature of ending in `5`. Ask the same probe for `"is x
+divisible by 7?"` and the $R^2$ is essentially zero. Same for
+`"is x prime?"`. The embedding has structure for the things a careful
+reader of natural language might track — size, parity, last digit — and
+ignores number-theory properties that show up too rarely in text to matter.
+
+![Linear-probe $R^2$ at each layer for monotone targets, non-monotone targets, and a noise baseline. The log axis, parity, and last digit are all decodable at the embedding ($R^2 > 0.9$). Number-theoretic properties (mod 7, primality) and the shuffle control are at chance.](./probe_gpt2_controls.png){#fig-controls}
+
+### Does this generalise across categories of numbers?
+
+A natural question: does the integer log axis carry over to other
+numeric tokens — years like `" 1990"`, round numbers like `" 1000"`,
+number-words like `" million"`? A simple model says yes: GPT-2 has one
+shared magnitude axis for everything numeric.
+
+The data says no, decisively. Apply the integer-trained probe to:
+
+- 152 single-token years from $[1500, 2099]$ → $R^2 = -2274$. The readouts
+  are nearly constant regardless of which year you feed in. The
+  integer axis can't distinguish 1500 from 2099 at all.
+- 33 single-token round numbers (multiples of 100 up to 100 000) →
+  $R^2 = 0.22$. Weak positive transfer.
+- 24 single-token English number-words ("one"..."twenty", "hundred",
+  "thousand", "million", "billion") → $R^2 = 0.14$.
+
+![The integer-trained log probe applied to other numeric categories. Integers (training) sit cleanly on $y = x$. Years, round numbers, and number-words sit far off the line. Each numeric category lives on its own axis in embedding space; there is no universal magnitude direction.](./probe_gpt2_shared_axis.png){#fig-shared-axis}
+
+This tells you something about how GPT-2 represents numbers. The token
+`" 1990"` is encoded primarily as "a year" — its role in text — and only
+weakly as "the number 1990". The model's representation is
+role-dependent, not value-dependent. A probe trained on integers reads
+years as nonsense.
+
+## Does the log axis actually do anything?
+
+Decodability is a correlational fact. To test whether the model *uses*
+the log axis when it multiplies, I ran activation patching at the operand
+token.
+
+Take a prompt like `" 5 * 9 ="`. The model processes it normally. At the
+position where `" 5"` sits, the embedding's projection onto the probe
+direction $w$ reads $\log_2(5) \approx 2.3$. I add a rank-1 vector along
+$w$ so that projection now reads $\log_2(2) = 1$. Everything else about
+the embedding stays the same — same parity, same last-digit, same noise.
+Then I let the model run the full 12 layers and ask: which numeric token
+does the next-token distribution prefer?
+
+For `" 5 * 9 ="`, patching $\log_2(5) \to \log_2(2)$ makes the logit for
+`" 18"` (= $2 \cdot 9$) rise *above* the logit for `" 45"` (= $5 \cdot 9$).
+The model has been talked into preferring the patched product. Patching
+toward $4$ makes `" 36"` win. Patching toward $5$ does nothing, as it
+should. And — the critical control — patching along five different random
+directions of equal magnitude to $w$ gives logit shifts indistinguishable
+from zero. The effect is specific to the probe direction.
+
+The effect is also *asymmetric*. Patching downward (toward smaller
+numbers) works cleanly. Patching upward (toward larger numbers) only
+partly works. Most plausible explanation: the LM head has a strong
+frequency prior favouring small, common numbers in text. A fixed-size
+patch is enough to push preference toward smaller numbers (with the prior)
+but not enough to push it toward larger numbers (against the prior).
+
+![Causal patching at the operand position. **Left:** change in relative logit, $\mathrm{logit}(a_{\mathrm{target}} \cdot b) - \mathrm{logit}(a \cdot b)$, as we patch the log direction at the `" a"` position. Solid lines are the log direction; dotted lines are random directions of the same norm. **Right:** heatmap of relative logits for `" 5 * 9 ="`. The yellow most-favoured-product stripe follows the perfect-log-shortcut line $p = a_{\mathrm{target}} \cdot b$ for downward patches, then sticks at 45 once we patch toward larger numbers.](./probe_gpt2_patching.png){#fig-patching}
+
+## Does the model actually compute log(a·b)?
+
+This is the test I most wanted to run.
+
+If the model does the slide-rule trick — adds the operand logs and then
+exponentiates at the end — then at the position of the `=` sign, the
+residual stream right before the LM head should be carrying
+$\log_2(a \cdot b)$. The operand-side log direction $w$ ought to read off
+this value.
+
+I checked. For `" 5 * 9 ="`, the operand-side probe at `=` reads off
+**10.76** — not $\log_2(45) \approx 5.49$. For `" 3 * 7 ="` it reads
+**11.17**, not $\log_2(21) \approx 4.39$. Across nine different prompts,
+the readout is essentially flat. The $R^2$ of "what the operand-axis probe
+reads at `=`" against "the true $\log_2(a \cdot b)$" is **0.011** — no
+signal.
+
+My first reaction was that the circuit isn't there. The shortcut exists
+on the input side, but the model isn't wiring it together.
+
+Then it occurred to me: maybe the model uses a *different* direction at
+the `=` position to write down the answer's log than the one it uses to
+read the operands' logs. There's no architectural reason those have to be
+the same vector — the model can translate between representations as it
+computes. So I trained a fresh ridge probe directly on the residual at
+`=`, against $\log_2(a \cdot b)$ for several hundred random $(a, b)$ pairs.
+
+::: {.callout-important title="The key result"}
+The new probe predicts the answer's log at **$R^2 = 0.989$** on held-out
+$(a, b)$ pairs. The model has computed $\log_2(a \cdot b)$. It's there.
+It's almost perfectly linearly decodable from the residual stream right
+before the LM head. I had simply been looking on the wrong axis.
+:::
+
+So the picture is this. The operands' logs are written down on one axis
+at the input. Somewhere in the middle layers, the model adds them and
+rewrites the result on a *different* axis at the `=` position. The LM
+head then reads that second axis to decide what number comes next. The
+whole $\log \to \mathrm{sum} \to \exp$ machine is sitting in GPT-2 small.
+
+![The end-to-end pipeline. **Left:** patching the log component at the `=` position of real prompts; argmax over numeric tokens is stuck at `" 1"` regardless of $v_{\mathrm{target}}$. **Middle:** the operand-side probe's readout at `=` is roughly constant ($\sim 10.8$) across all prompts, uncorrelated with $\log_2(a \cdot b)$ ($R^2 = 0.011$). **Right:** a fresh probe trained directly on residuals at `=` predicts $\log_2(a \cdot b)$ at $R^2 = 0.989$ on held-out pairs.](./probe_gpt2_pipeline.png){#fig-pipeline}
+
+### A correction: the answer-side direction is correlational, not causal
+
+The $R^2 = 0.989$ number is striking enough that I should ask whether the
+direction the probe found is actually the one the model *uses*, rather than
+some downstream feature that *correlates* with $\log_2(a \cdot b)$. That's
+the classic correlation-vs-causation issue with linear probes, sometimes
+called the "probing illusion".
+
+The clean way to test causation: take the fitted answer-side direction
+$w_{\mathrm{ans}}$, then for various $v_{\mathrm{target}}$, patch the
+residual at `=` so the projection onto $w_{\mathrm{ans}}$ equals
+$v_{\mathrm{target}}$, apply the LM head, and check whether the argmax
+over numeric tokens tracks $2^{v_{\mathrm{target}}}$.
+
+If the model uses this direction, the LM head's argmax should follow
+$2^{v_{\mathrm{target}}}$ — slope 1 on a log-log plot. If it merely
+*correlates* with $\log_2(a \cdot b)$, patching it should move nothing.
+
+The result: **slope $0.072$, not 1**. For most prompts the argmax over
+numeric tokens doesn't change at all across an 11-log-unit sweep. The
+LM head clearly doesn't read this direction. The 0.989 R² says
+$\log_2(a \cdot b)$ is *encoded* there — but probably as a downstream
+consequence of whatever the model is actually doing, not because the
+LM head reads it.
+
+::: {.callout-warning title="Honest revision"}
+The original write-up of this experiment claimed the pipeline was "wired
+up" because the answer's log was decodable at $R^2 = 0.989$. The causal
+test shows that's overclaiming. The decodability is real, but the
+LM head doesn't act on that specific direction. The right summary is:
+**the model has computed something equivalent to $\log_2(a \cdot b)$
+somewhere in its residual stream at `=`, but the LM head's actual choice
+of next token is driven by other directions.** What those directions
+encode, and how they relate to the operand-side log axis, is still open.
+:::
+
+![Patching along the fitted answer-side direction $w_{\mathrm{ans}}$ at the `=` position. **Left:** for each of eight multiplication prompts, $\log_2$ of the LM head's argmax-numeric vs the injected $v_{\mathrm{target}}$. Compared to the dashed reference $y = v_{\mathrm{target}}$, the curves are essentially flat — the LM head doesn't read this direction. **Right:** rank of the closest single-token integer to $2^{v_{\mathrm{target}}}$ among all numeric tokens. The target never ends up at rank 0; it bottoms around 100-300 out of 638 numeric tokens.](./probe_gpt2_answer_side_causal.png){#fig-answer-side-causal}
+
+## Two more checks: was the other finding real or an artifact?
+
+The $0.989$ number is striking enough that I want to ask twice. Two
+follow-ups, both quantitative.
+
+### Check 1 — does the LM head act on the log axis?
+
+The LM head's row for each numeric token is what gets dotted with the
+residual stream to produce the next-token logit. If the log axis matters
+for output, those rows should have non-trivial mass on it.
+
+For GPT-2 small: the log direction captures 3.6% of each numeric LM-head
+row's squared norm on average, versus $1/d = 0.13\%$ for a random
+direction — about $28\times$ the isotropic baseline.
+
+But there's a catch. GPT-2 ties its LM head to its embedding, so the LM
+head row for token `" 5"` is *literally* the same vector as the embedding
+of `" 5"`. The "alignment" of LM head with log axis is automatic, not
+emergent. To separate "tying" from "emergent alignment", I re-ran the
+analysis on two more models with untied weights — **Pythia-70M** and
+**Pythia-160M**:
+
+| Model | Hidden $d$ | Tied? | LM-head log-axis fraction | Multiple of $1/d$ baseline |
+|-------|-----------|-------|---------------------------|----------------------------|
+| GPT-2 small (124M) | 768 | tied | 3.6% | **28×** |
+| Pythia-70M | 512 | untied | 0.19% | **1.0×** |
+| Pythia-160M | 768 | untied | 0.01% | **0.1×** |
+
+Without weight tying, the LM head doesn't independently align with the
+integer-embedding log axis. The underlying log axis is real (decodable at
+$R^2 \approx 0.89$ in both Pythia embeddings too — see panel A of
+@fig-summary), but the LM head doesn't inherit it for free when weights
+are untied. The "28× baseline" number for GPT-2 was largely an artifact of
+weight tying.
+
+![LM-head log-axis decomposition for GPT-2 small. The 3.6% number averaged over numeric tokens is real, but the comparison with Pythia (see panel C of @fig-summary) shows most of that comes from weight tying.](./probe_gpt2_lmhead.png){#fig-lmhead}
+
+### Check 2 — does the log axis pull on the actual output distribution?
+
+The behavioural test. For 200 random multiplication prompts
+$(a, b) \in [2, 50)^2$, I look at the model's next-token distribution
+restricted to numeric tokens, and fit a simple log-Gaussian:
+
+$$
+P(\text{predict } n \mid a, b) \propto \exp\!\left(-\frac{(\log_2 n - \mu)^2}{2\sigma^2}\right).
+$$ {#eq-gauss}
+
+If the log circuit drives output, $\mu \approx \log_2(a \cdot b)$ and
+$\sigma$ shrinks with confidence. If the log axis is ignored, $\mu$ has
+no relation to the true log.
+
+The result sits between these. Across 200 prompts:
+
+- $0/200$ argmaxes are correct (GPT-2 small really can't multiply).
+- Fitted $\mu$ is biased $\mathbf{-3.25}$ log-units *below* the true
+  $\log_2(a \cdot b)$ on average. The model predicts numbers about
+  $2^{3.25} \approx 9.5\times$ smaller than the right answer.
+- But the slope of $\mu$ vs $\log_2(a \cdot b)$ across prompts is
+  $\boldsymbol{\beta = 0.22}$. Not 1 (perfect readout), not 0 (no
+  readout), but a clear positive coupling.
+
+Repeating the experiment on Pythia-70M gives $\beta = 0.22$ — same as
+GPT-2. On Pythia-160M I get $\beta = 0.19$. Across three models with
+very different LM-head geometries (4 orders of magnitude apart in their
+log-axis fraction), **the behavioural pull on output is the same**:
+about 22% of what a clean readout would produce. The slope $\beta \approx
+0.22$ looks like a property of the cost-sensitive output distribution
+the models share, not of how their LM heads happen to align with
+integer-embedding directions.
+
+| Model | LM-head log-axis fraction | Near-miss $\beta$ |
+|-------|---------------------------|-------------------|
+| GPT-2 small | 3.6% (28× baseline) | 0.22 |
+| Pythia-70M | 0.19% (1.0× baseline) | 0.22 |
+| Pythia-160M | 0.01% (0.1× baseline) | 0.19 |
+
+![Near-miss arithmetic for GPT-2. **Left:** fitted mean log of the predicted distribution vs true $\log_2(a \cdot b)$. The mean predicted log tracks the true log with slope $\beta = 0.22$, biased about 3 units below the $y = x$ line. **Middle:** fitted spread $\sigma$ is roughly constant at $\sim 1.9$ log-units. **Right:** three example predicted distributions; dotted vertical lines mark the true $\log_2(a \cdot b)$.](./probe_gpt2_near_miss.png){#fig-near-miss}
+
+This $\beta = 0.22$ ties everything together. The log circuit puts
+$\log_2(a \cdot b)$ in the residual stream at $R^2 = 0.989$. The LM head
+acts on it to roughly 22% of what perfect readout would give, swamped by a
+much larger frequency prior. The machine is wired up; it just isn't loud
+enough.
+
+## What this collectively shows
+
+Five claims, the first three robust and the last two more tentative.
+
+The embedding layer of all three models encodes integers on an
+approximately logarithmic axis, along with separate axes for parity and
+last digit. Number-theoretic properties not visible in surface text
+(mod 7, primality) do not get a coherent representation. The log-axis
+shape peaks the power-law sweep at $\alpha = 0$, but the absolute
+preference of log over linear is partly weight-tying dependent — GPT-2
+has log $\gg$ linear at the embedding, while untied Pythia models have
+log $\approx$ linear there.
+
+Perturbations along the embedding's log axis have structured,
+direction-specific causal effect on the model's next-token predictions in
+multiplication prompts. Random directions of the same magnitude do not.
+This rules out the "probe is finding a noise direction" null hypothesis.
+The asymmetry of the effect (downward patches work, upward patches partly
+fail) points at the LM head's frequency prior as the limiting factor.
+
+In all three models, the behavioural pull of the log axis on actual
+output is invariant at $\beta \approx 0.22$ — about 22% of what perfect
+log-circuit readout would give. This is true across models that differ
+by orders of magnitude in their LM-head log-axis alignment. So the
+behavioural number isn't a function of LM-head geometry; it's a function
+of how loud the output-side frequency prior is relative to whatever the
+log circuit contributes.
+
+A fresh probe trained on `=`-position residuals to predict
+$\log_2(a \cdot b)$ achieves $R^2 = 0.989$ on held-out pairs. The model
+*has* computed something linearly equivalent to the answer's log
+somewhere in its residual stream. But **patching that direction barely
+moves the LM head's argmax** (slope 0.07 of perfect readout). So the
+direction is a downstream encoding, not the one the head actually reads.
+What direction the head *does* read for numeric output, and how it
+relates to the operand-side log axis, is the most interesting open
+question this work leaves.
+
+The framing-level lesson is that small language models can have
+mechanistically rich circuits whose behavioural effect is suppressed by
+the output distribution they were trained against. "Can't do
+multiplication" is consistent with "has parts of the multiplication
+circuit", as long as a louder competing signal is shouting "use a common
+number" and the probe-found directions aren't the ones the LM head
+listens to.
+
+## Caveats
+
+GPT-2 ties its LM head to the embedding. Much of the apparent LM head ↔
+log axis alignment is architectural. The Pythia-160M comparison addresses
+this for one untied model, but a wider scan across model families would
+be more convincing.
+
+The causal-patching shifts are measured on relative logits among
+candidate products, not on argmax. Both small models get $0/200$
+multiplications right. A model that can actually multiply (Pythia-1.4B,
+Llama-3.2-1B, Qwen-2.5-0.5B) would let the patch flip the argmax
+cleanly, not just shift relative logits.
+
+The fitted answer-side probe at the `=` position has $R^2 = 0.989$ on
+$(a, b) \in [2, 64]^2$ pairs. Whether the same direction carries
+$\log_2(a \cdot b)$ for much larger operands is untested.
+
+The middle layers — where the operand-axis log gets translated to the
+answer-axis log — are a black box in this study. Path-patching across
+(layer, position) pairs would identify the attention heads that move log
+information from operand positions to the `=` position. The infrastructure
+for it is already in the patching code; I just didn't run it.
+
+## Five things to test next
+
+**Find the direction the LM head actually reads.** The biggest open
+question raised by the answer-side causal test. The 0.989 probe is
+correlational; the LM head's argmax is driven by some other direction.
+A sparse autoencoder or top-singular-vectors analysis of the LM-head
+columns for numeric tokens should expose what they actually decode.
+
+**Exponentiation as a sharper test.** If the model uses the log axis
+compositionally, patching $\log(a)$ by $\Delta$ in an `a^b =` prompt
+should shift the output's log by $b \cdot \Delta$ — a quantitative
+prediction with one free parameter. Same patching code, different prompts.
+
+**A bigger model that can actually multiply.** Pythia-1.4B, Llama-3.2-1B,
+or Qwen-2.5-0.5B. If $\beta = 0.22$ is invariant across model scale, it's
+a property of the training distribution, not capacity. If $\beta$ shoots
+up on a multiply-capable model, the limit at small scale really was
+"the head doesn't act on the log axis hard enough".
+
+**Path-patch to find the translation layer.** Where in the network does
+the operand-axis log get translated to whatever ends up at `=`? The
+patching infrastructure here is already 80% of what's needed.
+
+**Test the per-category axes.** Within years, fit a year-trained log
+probe. Does it transfer cleanly to other years? Repeat for round numbers,
+number-words. If the integer-trained axis doesn't transfer (the result
+above) but the within-category axes do transfer, the model has many
+private log axes, one per role.
+
+## Methodological note
+
+If a probe trained at position A gives no signal at position B, that
+doesn't mean the information isn't in B — it might just mean B uses a
+different direction. Fit a fresh probe at the position you actually care
+about before concluding the circuit is absent. In this study, that one
+habit was the difference between "no circuit found" and "circuit found
+at $R^2 = 0.989$".
+
+The shared-axis test worked the same way in reverse: an attractive
+hypothesis ("there's one universal magnitude axis for all numeric
+tokens") was falsified with about twenty minutes of compute and one
+transfer measurement. The Pythia comparison was the same shape — running
+the same probe on a second model with untied weights corrected a number
+I would otherwise have over-interpreted. Cheap probes are how you both
+rescue and kill ideas.
+
+## Code
+
+| File | Produces |
+|------|----------|
+| `reasoning_router.py` | @fig-toy-routing |
+| `probe_gpt2_log.py`, `probe_gpt2_controls.py` | @fig-controls |
+| `probe_gpt2_shared_axis.py` | @fig-shared-axis |
+| `probe_gpt2_patching.py` | @fig-patching |
+| `probe_gpt2_lmhead.py` | @fig-lmhead |
+| `probe_gpt2_pipeline.py` | @fig-pipeline |
+| `probe_gpt2_answer_side_causal.py` | @fig-answer-side-causal |
+| `probe_gpt2_near_miss.py` | @fig-near-miss |
+| `probe_pythia_compare.py`, `probe_pythia70_compare.py` | data for @fig-summary |
+| `make_summary_figure_v2.py` | @fig-summary |
+
+Dependencies: `torch`, `transformers`, `scikit-learn`, `matplotlib`. The
+full pipeline reproduces in about 20 minutes on a laptop CPU. GPT-2 small
+downloads at $\sim 500$ MB; Pythia-160M at $\sim 320$ MB.

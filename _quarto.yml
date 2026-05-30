@@ -1,0 +1,26 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "Probing small LMs"
+  description: "Probes, patches, and pictures from the residual stream."
+  navbar:
+    left:
+      - href: index.qmd
+        text: Posts
+      - href: about.qmd
+        text: About
+    right:
+      - icon: rss
+        href: index.xml
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    code-copy: true
+    code-tools: true
+    html-math-method: katex
+    fig-cap-location: bottom
