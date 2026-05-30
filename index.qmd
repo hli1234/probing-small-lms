@@ -1,5 +1,5 @@
 ---
-title: "Notes on what small language models know about the world"
+title: "Notes on what language models know about the world"
 subtitle: "Probes, patches, and pictures from the residual stream"
 listing:
   contents: posts
@@ -17,25 +17,7 @@ Each post here uses a small, runnable experiment — linear probes,
 activation patching, simple closed-form models — to ask one question
 about how a language model represents some piece of the world. The
 emphasis is on *cheap and direct*: every figure here reproduces on a
-laptop CPU in under an hour.
+laptop pc in under an hour.
 
-The two themes so far:
-
-**Numerical magnitude.** Small language models build a roughly
-logarithmic axis for integer magnitude in their token embeddings. That
-axis has direction-specific causal effect on multiplication predictions,
-and the answer's log is linearly decodable from the residual stream right
-before the LM head — but probing-vs-patching shows the probe direction
-is correlational, not causal. Across three small models the behavioural
-pull of the log axis on actual output is invariant at $\sim$22% of
-"perfect" log readout.
-
-**Physical scale.** GPT-2's bare-token embedding cleanly orders temporal
-words (`nanosecond → millennium`) on a log axis but not length or mass
-words — because length and mass tokens are semantically heterogeneous
-("electron" is a particle first, a mass second). Contextualised probing
-rescues both: with a `"the mass of a typical X is"` prompt, mass R² jumps
-from 0.45 to 0.84. The model has the information; the bare token doesn't
-store it on a probe-friendly direction.
 
 The posts:

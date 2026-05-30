@@ -4,28 +4,21 @@ image: profile.jpg
 about:
   template: jolla
   links:
-    - icon: bluesky
-      text: Bluesky
-      href: https://bsky.app/
     - icon: linkedin
       text: LinkedIn
-      href: https://linkedin.com
+      href: https://www.linkedin.com/in/huangxing-li-30b645197/
     - icon: github
       text: Github
-      href: https://github.com
+      href: https://github.com/hli1234/probing-small-lms
 ---
 
-A small notebook of mechanistic-interpretability experiments on tiny
+Interpretability experiments on
 language models. The recurring move: write down the simplest possible
-mathematical model of some LLM behaviour ("the embedding has a log axis",
-"the predicted distribution is log-Gaussian", "the LM head reads the
-log direction"), then test it with linear probes and activation patching.
-The simple models are often wrong in interesting ways — and the wrongness
+mathematical model of some LLM behaviour, then test it with carefully designed experiments.
+The simple models might be wrong in interesting ways — and the wrongness
 is what teaches you something about what the model is actually doing.
 
-Everything here reproduces on a laptop CPU. The models I use are GPT-2
+Everything here reproduces on a laptop. The models I use are GPT-2
 small (124M) and the smaller Pythia variants (70M, 160M), chosen so
 experiments run in minutes, not hours.
 
-If you want to read the source, the Python scripts that produce every
-figure are linked at the bottom of each post.
