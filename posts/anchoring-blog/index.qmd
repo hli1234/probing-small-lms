@@ -18,70 +18,64 @@ execute:
 bibliography: []
 ---
 
-When you train a transformer on data that has a periodic structure, its attention pattern often shows striking spikes at integer multiples of the period — 24 steps, 48 steps, 72 steps. The natural reading is that the model has learned the periodicity of the data and is "looking at" the corresponding earlier events.
+When a transformer is trained on data with a periodic structure, its attention patterns frequently exhibit sharp spikes at integer multiples of the period — 24 steps, 48 steps, 72 steps. The conventional interpretation is that the model has learned the underlying periodicity of the data and is actively retrieving relevant past events.
 
-But there's a quieter, weirder possibility. The model could instead have compiled a fixed *positional* routine: "always look at slot 24, regardless of what's there." Under this story, the periodic spikes aren't reports about which events are informative — they're an internal indexing scheme that happens to align with the period of the data.
+However, an alternative mechanism is possible: the model may have developed a fixed *positional* routine, learning to attend to specific slots regardless of their actual content. In this scenario, periodic spikes do not indicate that specific historical events are uniquely informative; instead, they function as an internal indexing scheme that happens to match the data's period.
 
-The two stories make very different predictions about what attention "means," and they're hard to tell apart in a real recommendation system, where you can't manipulate the data without retraining and you don't know which events actually matter. So let's set the real system aside and run the experiment in a sandbox where we control everything.
+These two hypotheses imply very different things about what attention weights actually represent. In production environments, such as recommendation systems, distinguishing between them is difficult because you cannot manipulate the data stream without retraining, and the true importance of individual features is often unknown. To isolate these mechanisms, we can evaluate a transformer in a fully controlled, synthetic environment.
 
 ## The setup
 
-We train a tiny transformer (≈29k parameters, 2 layers, 1 attention head) to predict the next value of a noisy periodic signal:
+We train a small transformer (≈29k parameters, 2 layers, 1 attention head) to predict the next value of a noisy periodic signal:
 
 $$y_t = \text{intercept} + \text{slope} \cdot t + A \sin(2\pi t / 24 + \phi) + \varepsilon_t$$
 
-with random amplitude, phase, slope, and additive noise. The model sees the last 96 values (4 full periods) and predicts the next one.
+The amplitude, phase, slope, and additive noise are randomized across sequences. The model receives the past 96 values (corresponding to 4 full periods) as input and predicts the immediate next value.
 
 ![Example sequences from the synthetic dataset. The red dot is the prediction target.](figures/fig0_data.png){#fig-data}
 
-This task has clean optimal behavior. To predict the next value you need to estimate the trend and the phase of the sine. To estimate phase, *any* point in the past is informative once you know its position relative to the target — and adjacent points are nearly equally informative because the underlying sine is smooth. There's no special reason for "exactly 24 steps ago" to matter more than "23 steps ago."
+This task has a straightforward optimal solution. To predict the next step, the model must estimate the trend and the phase of the sine wave. Because the underlying sine wave is smooth, adjacent points carry nearly identical phase information. Consequently, there is no intrinsic mathematical reason why an input exactly 24 steps ago should be significantly more informative than one 23 steps ago.
 
-A learnable query token is appended to the sequence; the model reads its prediction only from that position, mirroring the LLaTTE-style readout bottleneck. After 6 epochs of training the model reaches validation MSE 0.117, close to the irreducible noise floor (~0.09), and well below the predict-last-value baseline (0.210).
+A learnable query token is appended to the sequence, and the prediction is read exclusively from this position, mimicking a LLaTTE-style readout bottleneck. After 6 epochs of training, the model achieves a validation MSE of 0.117. This is close to the irreducible noise floor (~0.09) and well below the baseline performance of simply predicting the last observed value (0.210).
 
 ## What the attention pattern looks like
 
-We extract attention weights from the query token back to each input position, average across the layers, and then average across 1000 held-out sequences:
+We extract the attention weights from the query token to each input position, average them across both layers, and evaluate the mean profile across 1,000 held-out validation sequences:
 
 ![Average attention from the query token vs lag. Dashed red lines mark integer multiples of the period.](figures/fig1_baseline_attention.png){#fig-baseline}
 
-There it is. Sharp recurring spikes, roughly one period apart, plus a strong recency peak near lag 1. The model has learned positional anchoring.
+The resulting profile shows clear, recurring spikes spaced roughly one period apart, alongside a strong recency bias near lag 1. This matches the expected pattern, but two specific details warrant closer inspection before running interventions:
 
-A couple of details worth flagging now, since they'll matter for the interventions:
+1. **The anchors deviate slightly from the true period.** The peaks occur at lags of 23, 45, and 69, rather than 24, 48, and 72. This discrepancy suggests the model is not simply transcribing the data's period. A likely explanation is that causal attention favors looking further into the past; lag 23 provides nearly identical phase information to lag 24 but extends one step deeper into the history. This indicates the spike locations are a learned structural artifact rather than a direct reflection of the data structure.
 
-1. **The anchors are slightly off the literal period.** The peaks sit at lags 23, 45, 69, not 24, 48, 72. This is itself a hint of B: the data's period is exactly 24, but the model picked something else. Why? My best guess: causal attention favors looking *into* the past rather than *at* the period boundary; lag 23 gives almost the same phase information as lag 24 but is one step deeper into the predictive horizon. Either way, the discrepancy means the spike locations are a learned implementation detail, not a transcription of the data's period.
-
-2. **Lag 23 gets ~13× more attention than lag 22.** A zoom-in:
+2. **Lag 23 receives roughly 13× more attention than lag 22.** A zoom-in:
 
 ![Zoomed view around the lag-23 spike. The dashed red line is the literal period; the spike is one step before it.](figures/fig2_zoomed.png){#fig-zoom}
 
-Two adjacent positions, near-identical content, very different attention weight. This is the configuration the swap experiment will exploit.
+Despite these two adjacent positions holding nearly identical content, their attention weights differ by an order of magnitude. We can exploit this variance to test the model's behavior.
 
-So far everything is consistent with both interpretations. The model could be paying attention at lag 23 because it has learned that the period-aligned point is informative (A), or because it has compiled a positional reading routine (B). Time to disambiguate.
+At this stage, the observations are compatible with both hypotheses: the model might attend to lag 23 because it associates that relative position with predictive utility, or it might be executing a rigid positional heuristic.
 
 ## Intervention 1: shift the period, watch the attention
 
-If the model is tracking the periodic signal in the data, then changing where the period actually aligns should move the attention spikes. Concretely: we generate sequences where the prediction target sits 4 steps after the input window (instead of 1 step after, as in training). Now the "one period before target" point sits at lag 21 from the end of the input window, not lag 24. Under A, the spike should follow the signal. Under B, the spike stays where the model put it.
+If the model dynamically tracks the periodic signal within the data, shifting the alignment of the period should cause the attention spikes to shift accordingly. To test this, we generate sequences where the prediction target is positioned 4 steps after the input window (rather than 1 step after, as seen during training). This shifts the optimal lookback point from lag 24 to lag 21 relative to the end of the input window. If the model is content-driven, the spike should move to lag 21. If it relies on fixed positions, the spike should remain stationary.
 
 ![Attention pattern under baseline (predict t+1) and offset target (predict t+4). The two curves overlap completely.](figures/fig4_offset.png){#fig-offset}
 
-You can only see one curve because the two are exactly on top of each other — the baseline and offset attention patterns are identical to ~3 decimal places at every lag. The model's attention pattern is completely insensitive to where the period actually aligns relative to the target.
+The baseline and offset attention curves overlap entirely, showing identical values to roughly three decimal places at every lag. The attention distribution is completely unresponsive to changes in where the period actually aligns relative to the target.
 
-Meanwhile prediction MSE went from 0.117 to 0.403 — a 3.4× degradation. The model is paying a real cost for keeping its attention pinned to the wrong positions. It would benefit from moving the spikes, and it doesn't.
-
-This rules out the strongest form of A. The attention pattern is not "wherever the period-aligned points happen to be." It's wherever the model has learned to look.
+As a consequence of this rigidity, the prediction MSE degrades from 0.117 to 0.403—a 3.4× increase in error. The model incurs a substantial performance penalty because it cannot adapt its attention spikes to the new alignment. This result rules out the hypothesis that the attention pattern dynamically tracks the signal's period.
 
 ## Intervention 2: swap the contents
 
-OK, but maybe the model has just learned a fixed positional routine that *usually* aligns with the period and treats the value at that position as informative. In that case, the value at the anchor position should still matter to the model. We can test this by leaving the anchor position alone but changing what value sits there.
+Even if the model uses a fixed positional routine, it might still treat the value at that specific anchor position as the primary informative feature. We can test whether the model is sensitive to the content of the anchor slot by manipulating the values at lags 22 and 23. Because the autocorrelation between adjacent points in a sine wave with a period of 24 is high (~0.97), these slots contain very similar signal profiles. We perform two distinct interventions:
 
-The anchor is at lag 23. Its near neighbor at lag 22 carries essentially the same information (autocorrelation between adjacent points in a sine with period 24 is ~0.97). We do two interventions:
-
-- **Swap.** Exchange the values at lag 22 and lag 23. Position 23 now holds what used to be at position 22 (similar but not identical value); position 22 now holds the old anchor value. If attention is following informative content, it should move to position 22.
-- **Corrupt.** Replace the value at lag 23 with random Gaussian noise. If attention reflects informativeness, it should drop (the value is now uninformative).
+- **Swap.** Exchange the values at lag 22 and lag 23. Position 23 now contains the value originally at position 22, and vice versa. If the attention mechanism targets the underlying content, the peak weight should shift to position 22.
+- **Corrupt.** Replace the value at lag 23 with random Gaussian noise. If attention depends on feature relevance, the weight at this position should drop significantly.
 
 ![Three attention curves — baseline, after value swap, and after value corruption — all overlap.](figures/fig5_content_swap.png){#fig-swap}
 
-Three curves, one shape. The attention pattern is unchanged under both interventions, down to the third decimal. Numerically:
+All three interventions yield identical attention profiles down to the third decimal place:
 
 | Position | Baseline attention | After swap | After corruption |
 |---|---|---|---|
@@ -90,9 +84,9 @@ Three curves, one shape. The attention pattern is unchanged under both intervent
 
 : Attention weights at the anchor position and its neighbor under each intervention. {#tbl-attn}
 
-Note the small *increase* in attention after corruption. The model didn't just fail to redirect attention away from a now-meaningless slot — it slightly increased the weight. The anchor position is a routine, not a referendum on what's there.
+Notably, attention at the anchor position increases slightly after corruption. The model fails to redirect attention away from the degraded slot; instead, it enforces its positional routine regardless of data quality.
 
-The prediction MSE tells a coherent story:
+The impact on prediction error reflects this rigidity:
 
 | Condition | MSE | Δ from baseline |
 |---|---|---|
@@ -102,26 +96,26 @@ The prediction MSE tells a coherent story:
 
 : Prediction MSE under each intervention. The model cannot route around a broken anchor. {#tbl-mse}
 
-The swap barely hurts (the swapped values are nearly identical, and the model reads them through the same anchor either way). Corruption hurts noticeably, because the model is *still reading from the corrupted position* and is now putting noise into its prediction. It cannot route around the broken anchor.
+The swap causes negligible harm because the exchanged values are highly correlated and read through the same structural anchor. However, corrupting lag 23 noticeably increases the error. Because the model continues to attend heavily to the corrupted slot, it incorporates pure noise into its final prediction, demonstrating an inability to route around a broken anchor.
 
 ## What this shows, and what it doesn't
 
-In this controlled setting the model very clearly does Interpretation B. Periodic attention spikes are positional anchors, not pointers at informative events. The evidence:
+In this synthetic environment, the model strictly exhibits positional anchoring rather than content-driven retrieval. The findings are supported by several points:
 
-- The spikes don't sit on the literal period (lag 23, not lag 24).
-- They don't move when the period of the data shifts.
-- They don't move when the values at those positions are swapped or replaced with noise.
-- The model pays a measurable prediction cost rather than redirecting attention.
+- The attention spikes do not align with the true physical period of the data (lag 23 vs. lag 24).
+- The spikes remain fixed when the underlying period of the data shifts.
+- The attention weights do not change when the contents of the target positions are swapped or replaced with noise.
+- The model accepts a significant increase in prediction error rather than shifting its attention weights.
 
-What this does *not* show, in order of importance:
+However, these findings come with specific caveats:
 
-1. **This isn't a refutation of A in real systems.** Real user behavior has genuine routines — people do click ads at the same time of day. A model trained on real data probably learns *both* a periodic anchoring strategy *and* picks up on event-level signal. The experiment shows that anchoring is a thing transformers can learn purely from positional cues; it doesn't quantify how much of any real attention pattern is anchoring vs. content.
+1. **This does not disprove content-driven attention in production systems.** Real-world user behavior contains actual periodic routines — people do click ads at the same time of day. Models trained on complex data likely combine positional anchoring with genuine content-driven features. The experiment demonstrates that anchoring can emerge purely from positional cues, but it does not measure the balance between anchoring and content selection in large-scale models.
 
-2. **The synthetic data is much simpler than user behavior.** With a single dominant frequency and Gaussian noise, the cheapest strategy may genuinely be "anchor on the period and reconstruct." Real sequences have multiple time scales, irregular spacing, and heterogeneous content; the cost-benefit tradeoff for anchoring is different. I'd expect anchoring to be *less* extreme there, with more content-sensitivity mixed in.
+2. **The synthetic dataset is simpler than real-world data.** A signal defined by a single dominant frequency and Gaussian noise makes a fixed "anchor and reconstruct" strategy highly cost-effective. Real-world sequences feature irregular spacing, multiple overlapping time horizons, and heterogeneous content, which changes the trade-offs and likely reduces the severity of pure anchoring.
 
-3. **One model, one seed, one period.** I didn't sweep architectures or seeds. The qualitative finding (positional anchors exist and dominate attention) was robust enough to show up clearly on the first training run, but the precise lag of the spikes is an implementation detail of this particular run.
+3. **The scope is limited to a single model instance.** We did not perform a broad sweep of architectures or initialization seeds. While the presence of positional anchors was robust enough to appear clearly on the first run, the exact lag of the spikes should be viewed as an implementation detail of this specific training instance.
 
-4. **The anchoring is causally consequential.** Corruption of the anchor degrades MSE; the model can't compensate. This is the part that should make us cautious about interpreting attention as "what the model thinks is informative." The model thinks the slot is informative — and is wrong, in a way it can't correct.
+4. **The anchoring behavior dictates downstream performance.** Corrupting the anchor directly degrades the final MSE because the model cannot adjust. This highlights why interpreting attention weights as a proxy for "feature importance" can be misleading: the model treats the slot as important even when its contents are demonstrably harmful to the prediction.
 
 ## The takeaway
 
